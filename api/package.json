@@ -1,0 +1,19 @@
+{
+  "name": "@womenflare/api",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply womenflare --local",
+    "db:migrate:remote": "wrangler d1 migrations apply womenflare --remote",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "oxlint src"
+  },
+  "devDependencies": {
+    "oxlint": "^1.79.0",
+    "typescript": "~6.0.2",
+    "wrangler": "^4.69.0"
+  }
+}

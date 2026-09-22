@@ -1,0 +1,15 @@
+{
+  "name": "womenflare",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": ["api", "mobile"],
+  "scripts": {
+    "dev:api": "npm run dev --workspace @womenflare/api",
+    "dev:mobile": "npm run start --workspace @womenflare/mobile",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "deploy:api": "npm run deploy --workspace @womenflare/api",
+    "db:migrate:local": "npm run db:migrate:local --workspace @womenflare/api",
+    "db:migrate:remote": "npm run db:migrate:remote --workspace @womenflare/api"
+  }
+}

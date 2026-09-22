@@ -1,0 +1,28 @@
+{
+  "name": "@womenflare/mobile",
+  "private": true,
+  "version": "1.0.0",
+  "main": "expo/AppEntry",
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo run:ios",
+    "android": "expo run:android",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "oxlint App.tsx"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "^57.0.20",
+    "expo-splash-screen": "~57.0.8",
+    "expo-status-bar": "^57.0.1",
+    "expo-system-ui": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "oxlint": "^1.79.0",
+    "typescript": "~6.0.2"
+  }
+}

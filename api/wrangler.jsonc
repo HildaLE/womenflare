@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "womenflare",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "womenflare",
+      "database_id": "45a6fa43-1a86-4ee8-881c-487e43f0e105",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "QUIZ_SESSION",
+        "class_name": "QuizSession"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["QuizSession"]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

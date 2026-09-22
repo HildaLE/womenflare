@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "WomenFlare",
+    "slug": "womenflare",
+    "version": "1.0.0",
+    "platforms": ["ios", "android"],
+    "orientation": "portrait",
+    "icon": "./assets/icon-only.png",
+    "scheme": "womenflare",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "imageWidth": 300,
+          "resizeMode": "contain",
+          "backgroundColor": "#f7f3ee"
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cloudflare.womenflare"
+    },
+    "android": {
+      "package": "com.cloudflare.womenflare",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon-only.png",
+        "backgroundColor": "#24143d"
+      }
+    }
+  }
+}
