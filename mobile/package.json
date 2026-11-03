@@ -2,7 +2,7 @@
   "name": "@womenflare/mobile",
   "private": true,
   "version": "1.0.0",
-  "main": "expo/AppEntry",
+  "main": "index.js",
   "scripts": {
     "start": "expo start",
     "ios": "expo run:ios",
@@ -12,10 +12,10 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
-    "expo": "^57.0.20",
-    "expo-splash-screen": "~57.0.8",
+    "expo": "~57.0.31",
+    "expo-splash-screen": "~57.0.10",
     "expo-status-bar": "^57.0.1",
-    "expo-system-ui": "~57.0.1",
+    "expo-system-ui": "~57.0.4",
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0"
