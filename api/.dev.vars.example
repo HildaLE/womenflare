@@ -1,3 +1,3 @@
-ADMIN_EMAIL=admin@cloudflare.com
+ADMIN_EMAILS=hedimo@cloudflare.com,pseral@cloudflare.com,mderoquemaurel@cloudflare.com
 ADMIN_PASSWORD=Cloudflare2026!
 SESSION_SECRET=replace-with-at-least-32-random-characters

@@ -1,5 +1,8 @@
 const EVENT_SESSION_ID = "main-event";
 const QUESTION_DURATION_MS = 15_000;
+const REVEAL_DURATION_MS = 5_000;
+const CORRECT_ANSWER_POINTS = 500;
+const MAX_SPEED_BONUS_POINTS = 500;
 const SESSION_RETENTION_MS = 24 * 60 * 60_000;
 const QUIZ_LENGTH = 20;
 const TOKEN_TTL_SECONDS = 8 * 60 * 60;
@@ -44,10 +47,15 @@ interface DurableObjectState {
   storage: DurableObjectStorage;
 }
 
+interface Fetcher {
+  fetch(request: Request): Promise<Response>;
+}
+
 interface Env {
   DB: D1Database;
   QUIZ_SESSION: DurableObjectNamespace;
-  ADMIN_EMAIL: string;
+  ASSETS: Fetcher;
+  ADMIN_EMAILS: string;
   ADMIN_PASSWORD: string;
   SESSION_SECRET: string;
 }
@@ -101,6 +109,15 @@ interface QuestionInput {
   position: number;
 }
 
+interface ResourceInput {
+  name: string;
+  description: string;
+  url: string;
+  phone: string | null;
+  type: string;
+  sortOrder: number;
+}
+
 class HttpError extends Error {
   constructor(
     readonly status: number,
@@ -134,12 +151,15 @@ function errorResponse(error: unknown): Response {
 
 function withResponseHeaders(response: Response, request: Request): Response {
   const headers = new Headers(response.headers);
+  const isApi = new URL(request.url).pathname.startsWith("/api/");
   headers.set("x-content-type-options", "nosniff");
   headers.set("referrer-policy", "strict-origin-when-cross-origin");
   headers.set("permissions-policy", "camera=(), microphone=(), geolocation=()");
   headers.set(
     "content-security-policy",
-    "default-src 'none'; frame-ancestors 'none'",
+    isApi
+      ? "default-src 'none'; frame-ancestors 'none'"
+      : "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
   );
   headers.set("cross-origin-resource-policy", "same-site");
 
@@ -209,11 +229,11 @@ function validateQuestion(body: Record<string, unknown>): QuestionInput {
   if (prompt.length < 10 || prompt.length > 500) {
     throw new HttpError(400, "La question doit contenir entre 10 et 500 caractères.");
   }
-  if (options.length !== 4 || options.some((option) => option.length < 1 || option.length > 300)) {
-    throw new HttpError(400, "Quatre options non vides sont requises.");
+  if (options.length !== 3 || options.some((option) => option.length < 1 || option.length > 300)) {
+    throw new HttpError(400, "Trois options non vides sont requises.");
   }
-  if (!Number.isInteger(answerIndex) || (answerIndex as number) < 0 || (answerIndex as number) > 3) {
-    throw new HttpError(400, "answerIndex doit être un entier entre 0 et 3.");
+  if (!Number.isInteger(answerIndex) || (answerIndex as number) < 0 || (answerIndex as number) > 2) {
+    throw new HttpError(400, "answerIndex doit être un entier entre 0 et 2.");
   }
   if (explanation.length < 5 || explanation.length > 1_000 || category.length < 2 || category.length > 120) {
     throw new HttpError(400, "L'explication ou la catégorie est invalide.");
@@ -222,6 +242,29 @@ function validateQuestion(body: Record<string, unknown>): QuestionInput {
     throw new HttpError(400, "position doit être un entier positif.");
   }
   return { prompt, options, answerIndex: answerIndex as number, explanation, category, position: position as number };
+}
+
+function validateResource(body: Record<string, unknown>): ResourceInput {
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const description = typeof body.description === "string" ? body.description.trim() : "";
+  const url = typeof body.url === "string" ? body.url.trim() : "";
+  const phoneValue = typeof body.phone === "string" ? body.phone.trim() : "";
+  const type = typeof body.type === "string" ? body.type.trim() : "";
+  const sortOrder = body.sortOrder ?? 0;
+  if (name.length < 2 || name.length > 150) throw new HttpError(400, "Le nom de la ressource est invalide.");
+  if (description.length < 5 || description.length > 1_000) throw new HttpError(400, "La description est invalide.");
+  if (type.length < 2 || type.length > 120) throw new HttpError(400, "Le type de ressource est invalide.");
+  if (phoneValue.length > 50) throw new HttpError(400, "Le numéro de téléphone est invalide.");
+  if (!Number.isInteger(sortOrder) || (sortOrder as number) < 0 || (sortOrder as number) > 10_000) {
+    throw new HttpError(400, "L'ordre doit être un entier positif.");
+  }
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") throw new Error();
+  } catch {
+    throw new HttpError(400, "L'URL de la ressource est invalide.");
+  }
+  return { name, description, url, phone: phoneValue || null, type, sortOrder: sortOrder as number };
 }
 
 function bytesToBase64Url(bytes: Uint8Array): string {
@@ -372,17 +415,18 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
 
   if (pathname === "/api/admin/login" && request.method === "POST") {
     enforceLoginRateLimit(request);
-    if (!env.ADMIN_EMAIL || !env.ADMIN_PASSWORD || !env.SESSION_SECRET) {
+    if (!env.ADMIN_EMAILS || !env.ADMIN_PASSWORD || !env.SESSION_SECRET) {
       throw new HttpError(500, "Secrets administrateur non configurés.", "configuration_error");
     }
     const body = await readJson(request);
     const email = typeof body.email === "string" ? body.email.normalize("NFKC").trim().toLowerCase() : "";
     const password = typeof body.password === "string" ? body.password : "";
-    const [emailMatches, passwordMatches] = await Promise.all([
-      credentialsMatch(email, env.ADMIN_EMAIL.trim().toLowerCase(), env.SESSION_SECRET, "email"),
+    const allowedEmails = env.ADMIN_EMAILS.split(",").map((value) => value.trim().toLowerCase()).filter(Boolean);
+    const [emailResults, passwordMatches] = await Promise.all([
+      Promise.all(allowedEmails.map((allowedEmail) => credentialsMatch(email, allowedEmail, env.SESSION_SECRET, "email"))),
       credentialsMatch(password, env.ADMIN_PASSWORD, env.SESSION_SECRET, "password"),
     ]);
-    if (!emailMatches || !passwordMatches) {
+    if (!emailResults.some(Boolean) || !passwordMatches) {
       throw new HttpError(401, "Identifiants invalides.", "invalid_credentials");
     }
     const key = request.headers.get("cf-connecting-ip") ?? request.headers.get("x-forwarded-for") ?? "unknown";
@@ -431,6 +475,36 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
     return new Response(null, { status: 204 });
   }
 
+  if (pathname === "/api/admin/resources" && request.method === "GET") {
+    const result = await env.DB.prepare(
+      "SELECT id, name, description, url, phone, resource_type AS type, sort_order AS sortOrder FROM resources ORDER BY sort_order, id",
+    ).all();
+    return json({ resources: result.results });
+  }
+  if (pathname === "/api/admin/resources" && request.method === "POST") {
+    const input = validateResource(await readJson(request));
+    const result = await env.DB.prepare(
+      "INSERT INTO resources (name, description, url, phone, resource_type, sort_order) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
+    ).bind(input.name, input.description, input.url, input.phone, input.type, input.sortOrder).first<{ id: number }>();
+    return json({ id: result?.id }, 201);
+  }
+
+  const resourceMatch = pathname.match(/^\/api\/admin\/resources\/(\d+)$/);
+  if (resourceMatch && request.method === "PUT") {
+    const input = validateResource(await readJson(request));
+    const result = await env.DB.prepare(
+      "UPDATE resources SET name = ?, description = ?, url = ?, phone = ?, resource_type = ?, sort_order = ? WHERE id = ? RETURNING id",
+    ).bind(input.name, input.description, input.url, input.phone, input.type, input.sortOrder, Number(resourceMatch[1])).first<{ id: number }>();
+    if (!result) throw new HttpError(404, "Ressource introuvable.", "not_found");
+    return json({ id: result.id });
+  }
+  if (resourceMatch && request.method === "DELETE") {
+    const existing = await env.DB.prepare("SELECT id FROM resources WHERE id = ?").bind(Number(resourceMatch[1])).first();
+    if (!existing) throw new HttpError(404, "Ressource introuvable.", "not_found");
+    await env.DB.prepare("DELETE FROM resources WHERE id = ?").bind(Number(resourceMatch[1])).run();
+    return new Response(null, { status: 204 });
+  }
+
   if (pathname === "/api/admin/session/start" && request.method === "POST") {
     return callSession(env, "/admin/start", request);
   }
@@ -456,7 +530,11 @@ export default {
         response = new Response(null, { status: 204 });
       } else if (url.pathname.startsWith("/api/")) {
         response = await handleApi(request, env, url);
-      } else throw new HttpError(404, "Route API introuvable.", "not_found");
+      } else if (url.pathname === "/admin" && (request.method === "GET" || request.method === "HEAD")) {
+        response = Response.redirect(new URL("/admin/", url), 308);
+      } else {
+        response = await env.ASSETS.fetch(request);
+      }
     } catch (error) {
       response = errorResponse(error);
     }
@@ -495,7 +573,12 @@ export class QuizSession {
       changed = true;
       if (session.phase === "question") {
         session.phase = "reveal";
+        session.deadline = now + REVEAL_DURATION_MS;
+      } else if (session.phase === "reveal") {
+        const isLastQuestion = session.questionIndex + 1 >= session.questions.length;
+        session.phase = isLastQuestion ? "finished" : "checkpoint";
         session.deadline = null;
+        if (isLastQuestion) session.cleanupAt = Date.now() + SESSION_RETENTION_MS;
       } else {
         session.deadline = null;
       }
@@ -513,7 +596,7 @@ export class QuizSession {
   private publicState(session: SessionData, player: Player | undefined): Record<string, unknown> {
     const ranking = this.leaderboard(session);
     const ownRank = player ? ranking.find((entry) => entry.name === player.name)?.rank ?? null : null;
-    const question = session.phase === "question" || session.phase === "reveal"
+    const question = session.phase !== "waiting"
       ? session.questions[session.questionIndex]
       : undefined;
     const result: Record<string, unknown> = {
@@ -530,7 +613,7 @@ export class QuizSession {
       ownRank,
       playersCount: Object.keys(session.players).length,
     };
-    if (session.phase === "reveal" && question) {
+    if (session.phase !== "question" && session.phase !== "waiting" && question) {
       result.reveal = {
         answerIndex: question.answerIndex,
         explanation: question.explanation,
@@ -538,7 +621,7 @@ export class QuizSession {
       };
     }
     if (session.phase === "checkpoint" || session.phase === "finished") {
-      result.leaderboard = session.phase === "checkpoint" ? ranking.slice(0, 3) : ranking;
+      result.leaderboard = ranking.slice(0, 3);
     }
     return result;
   }
@@ -597,8 +680,8 @@ export class QuizSession {
         if (session.phase !== "question" || session.deadline === null || Date.now() >= session.deadline) {
           throw new HttpError(409, "Aucune question n'accepte de réponse.", "answers_closed");
         }
-        if (!Number.isInteger(optionIndex) || (optionIndex as number) < 0 || (optionIndex as number) > 3) {
-          throw new HttpError(400, "optionIndex doit être un entier entre 0 et 3.");
+        if (!Number.isInteger(optionIndex) || (optionIndex as number) < 0 || (optionIndex as number) > 2) {
+          throw new HttpError(400, "optionIndex doit être un entier entre 0 et 2.");
         }
         const question = session.questions[session.questionIndex];
         if (Object.hasOwn(player.answers, String(question.id))) throw new HttpError(409, "Réponse déjà enregistrée.", "already_answered");
@@ -606,7 +689,7 @@ export class QuizSession {
         let pointsAwarded = 0;
         if (optionIndex === question.answerIndex) {
           const remainingRatio = Math.max(0, Math.min(1, (session.deadline - Date.now()) / QUESTION_DURATION_MS));
-          pointsAwarded = 100 + Math.floor(50 * remainingRatio);
+          pointsAwarded = CORRECT_ANSWER_POINTS + Math.floor(MAX_SPEED_BONUS_POINTS * remainingRatio);
           player.score += pointsAwarded;
         }
         await this.save(session);
@@ -634,28 +717,12 @@ export class QuizSession {
       }
 
       if (url.pathname === "/admin/next" && request.method === "POST") {
-        if (session.phase !== "reveal" && session.phase !== "checkpoint") {
+        if (session.phase !== "checkpoint") {
           throw new HttpError(409, "La question en cours doit être terminée.", "invalid_phase");
         }
-        if (session.phase === "checkpoint") {
-          session.phase = "question";
-          session.questionIndex += 1;
-          session.deadline = Date.now() + QUESTION_DURATION_MS;
-        } else {
-          const completed = session.questionIndex + 1;
-          if (completed >= session.questions.length) {
-            session.phase = "finished";
-            session.deadline = null;
-            session.cleanupAt = Date.now() + SESSION_RETENTION_MS;
-          } else if (completed % 5 === 0) {
-            session.phase = "checkpoint";
-            session.deadline = null;
-          } else {
-            session.phase = "question";
-            session.questionIndex += 1;
-            session.deadline = Date.now() + QUESTION_DURATION_MS;
-          }
-        }
+        session.phase = "question";
+        session.questionIndex += 1;
+        session.deadline = Date.now() + QUESTION_DURATION_MS;
         await this.save(session);
         const nextAlarm = session.deadline ?? session.cleanupAt;
         if (nextAlarm === null) await this.state.storage.deleteAlarm();

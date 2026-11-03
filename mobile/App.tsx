@@ -54,7 +54,7 @@ interface AdminQuestion {
 
 const playerKey = 'womenflare-player-id'
 const adminKey = 'womenflare-admin-token'
-const optionLabels = ['A', 'B', 'C', 'D']
+const optionLabels = ['A', 'B', 'C']
 const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '')
 
 async function api<T>(path: string, options?: RequestInit, token?: string): Promise<T> {
@@ -160,28 +160,34 @@ function Join({ onJoined }: { onJoined: (playerId: string, state: QuizState) => 
           <Text style={styles.primaryButtonLabel}>{joining ? 'Connexion…' : 'Rejoindre'}</Text>
         </Pressable>
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Text style={styles.quiet}>●  15 secondes par question · podium toutes les 5 questions</Text>
+        <Text style={styles.quiet}>●  15 secondes · jusqu’à 1 000 points selon la rapidité · podium après chaque question</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   )
 }
 
 function Leaderboard({ state }: { state: QuizState }) {
-  const top = state.leaderboard?.slice(0, state.phase === 'finished' ? 10 : 3) ?? []
+  const top = state.leaderboard?.slice(0, 3) ?? []
   return (
     <ScrollView contentContainerStyle={styles.screen}>
       <Text style={styles.eyebrow}>{state.phase === 'finished' ? 'CLASSEMENT FINAL' : `APRÈS ${state.questionIndex + 1} QUESTIONS`}</Text>
       <Text style={styles.title}>{state.phase === 'finished' ? 'Merci d’avoir participé.' : 'Le podium se dessine.'}</Text>
       <View style={styles.ranking}>
         {top.map((entry) => (
-          <View key={`${entry.rank}-${entry.name}`} style={[styles.rank, entry.rank === 1 && styles.firstRank]}>
-            <Text style={[styles.rankNumber, entry.rank === 1 && styles.firstRankNumber]}>{entry.rank}</Text>
+          <View key={`${entry.rank}-${entry.name}`} style={[styles.rank, entry.rank === 1 && styles.firstRank, entry.rank === 2 && styles.secondRank, entry.rank === 3 && styles.thirdRank]}>
+            <Text style={[styles.rankNumber, entry.rank === 1 && styles.firstRankNumber, entry.rank === 2 && styles.secondRankNumber, entry.rank === 3 && styles.thirdRankNumber]}>{entry.rank}</Text>
             <Text numberOfLines={1} style={styles.rankName}>{entry.name}</Text>
             <Text style={styles.rankScore}>{entry.score} pts</Text>
           </View>
         ))}
       </View>
       {state.ownRank ? <Text style={styles.ownRank}>Votre position : <Text style={styles.strong}>#{state.ownRank}</Text> · {state.ownScore} points</Text> : null}
+      {state.question && state.reveal ? (
+        <View style={styles.podiumExplanation}>
+          <Text style={styles.explanationLabel}>À RETENIR</Text>
+          <Text style={styles.explanationText}>{state.reveal.explanation}</Text>
+        </View>
+      ) : null}
     </ScrollView>
   )
 }
@@ -207,7 +213,7 @@ function Question({ state, playerId, onResources }: { state: QuizState; playerId
   const isReveal = state.phase === 'reveal'
   return (
     <ScrollView contentContainerStyle={styles.screen}>
-      <View style={styles.questionMeta}><Text style={styles.category}>{question.category}</Text><Countdown deadline={state.deadline} /></View>
+      <View style={styles.questionMeta}><Text style={styles.category}>{question.category}</Text>{!isReveal ? <Countdown deadline={state.deadline} /> : null}</View>
       <Text style={styles.eyebrow}>QUESTION {state.questionIndex + 1} {isReveal ? '· RÉPONSE' : `SUR ${state.questionCount}`}</Text>
       <Text style={styles.questionTitle}>{question.prompt}</Text>
       {!isReveal ? <View style={styles.progress}><View style={[styles.progressValue, { width: `${((state.questionIndex + 1) / state.questionCount) * 100}%` }]} /></View> : null}
@@ -417,7 +423,7 @@ function Admin() {
         <Text style={styles.title}>Administration</Text>
         <Text style={styles.adminIntro}>Cette connexion est réservée à l’équipe organisatrice. Les participants rejoignent le quiz avec leur nom depuis l’onglet Quiz.</Text>
         <Text style={styles.label}>ADRESSE E-MAIL</Text>
-        <TextInput autoCapitalize="none" autoComplete="email" keyboardType="email-address" onChangeText={setEmail} placeholder="admin@cloudflare.com" placeholderTextColor="#8b818f" style={styles.input} value={email} />
+        <TextInput autoCapitalize="none" autoComplete="email" keyboardType="email-address" onChangeText={setEmail} placeholder="nom@cloudflare.com" placeholderTextColor="#8b818f" style={styles.input} value={email} />
         <Text style={styles.label}>MOT DE PASSE</Text>
         <TextInput autoCapitalize="none" onChangeText={setPassword} onSubmitEditing={login} placeholder="Mot de passe" placeholderTextColor="#8b818f" returnKeyType="go" secureTextEntry style={styles.input} value={password} />
         <Pressable disabled={busy || !email.trim() || !password} onPress={login} style={[styles.primaryButton, (busy || !email.trim() || !password) && styles.disabled]}><Text style={styles.primaryButtonLabel}>{busy ? 'Connexion…' : 'Se connecter'}</Text></Pressable>
@@ -435,7 +441,7 @@ function Admin() {
         <View style={styles.adminStat}><Text style={styles.adminStatLabel}>QUESTION</Text><Text style={styles.adminStatValue}>{session && session.questionIndex >= 0 ? `${session.questionIndex + 1}/${session.questionCount}` : '—'}</Text></View>
       </View>
       <Pressable disabled={busy || session?.phase !== 'waiting'} onPress={() => runAction('start')} style={[styles.primaryButton, (busy || session?.phase !== 'waiting') && styles.disabled]}><Text style={styles.primaryButtonLabel}>Lancer le quiz</Text></Pressable>
-      <Pressable disabled={busy || (session?.phase !== 'reveal' && session?.phase !== 'checkpoint')} onPress={() => runAction('next')} style={[styles.primaryButton, (busy || (session?.phase !== 'reveal' && session?.phase !== 'checkpoint')) && styles.disabled]}><Text style={styles.primaryButtonLabel}>{session?.phase === 'reveal' && session.questionIndex + 1 >= session.questionCount ? 'Terminer le quiz' : 'Question suivante'}</Text></Pressable>
+      <Pressable disabled={busy || session?.phase !== 'checkpoint'} onPress={() => runAction('next')} style={[styles.primaryButton, (busy || session?.phase !== 'checkpoint') && styles.disabled]}><Text style={styles.primaryButtonLabel}>Question suivante</Text></Pressable>
       <Pressable disabled={busy} onPress={confirmReset} style={[styles.resetButton, busy && styles.disabled]}><Text style={styles.resetButtonLabel}>Réinitialiser la session</Text></Pressable>
       {message ? <Text style={styles.adminMessage}>{message}</Text> : null}
       <Text style={styles.adminSectionTitle}>Questions ({questions.length})</Text>
@@ -495,7 +501,7 @@ const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18, padding: 30 }, waiting: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30, gap: 14 },
   questionMeta: { minHeight: 68, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }, category: { flexShrink: 1, color: colors.violet, fontSize: 11, fontWeight: '800', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 18, backgroundColor: colors.lilac, marginRight: 15, overflow: 'hidden' }, countdown: { width: 60, height: 60, borderWidth: 2, borderColor: colors.orange, borderRadius: 30, alignItems: 'center', justifyContent: 'center' }, countdownNumber: { color: colors.ink, fontSize: 21, lineHeight: 22, fontWeight: '800' }, countdownUnit: { color: colors.muted, fontSize: 8 },
   progress: { height: 3, backgroundColor: colors.line, marginBottom: 26 }, progressValue: { height: 3, backgroundColor: colors.orange }, answers: { gap: 11 }, answer: { minHeight: 84, padding: 14, borderWidth: 1, borderColor: colors.line, borderRadius: 14, backgroundColor: colors.paper, flexDirection: 'row', alignItems: 'center', gap: 14 }, answerLetter: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.lilac, color: colors.violet, textAlign: 'center', lineHeight: 34, fontWeight: '800', overflow: 'hidden' }, answerText: { flex: 1, color: colors.ink, fontSize: 14, lineHeight: 20 }, correctAnswer: { borderWidth: 2, borderColor: '#4f8b69', backgroundColor: '#edf7f0' }, wrongAnswer: { borderColor: '#b34c5d', backgroundColor: '#faeef0' }, saved: { color: colors.violet, textAlign: 'center', fontSize: 12, marginTop: 18 }, explanation: { borderLeftWidth: 3, borderLeftColor: colors.orange, padding: 16, backgroundColor: '#fff8ef', marginTop: 22 }, explanationLabel: { color: colors.orange, fontSize: 10, fontWeight: '900', letterSpacing: 1 }, explanationText: { color: colors.ink, fontSize: 14, lineHeight: 21, marginTop: 8 }, textLink: { color: colors.muted, fontSize: 12, textAlign: 'center', textDecorationLine: 'underline', marginTop: 26 },
-  ranking: { gap: 9, marginTop: 15 }, rank: { minHeight: 62, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: colors.line, borderRadius: 12, backgroundColor: colors.paper }, firstRank: { borderColor: colors.orange }, rankNumber: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#eee8e4', color: colors.ink, textAlign: 'center', lineHeight: 34, fontWeight: '800', overflow: 'hidden' }, firstRankNumber: { color: '#fff', backgroundColor: colors.orange }, rankName: { flex: 1, color: colors.ink, fontWeight: '700' }, rankScore: { color: colors.violet, fontSize: 12, fontWeight: '800' }, ownRank: { color: colors.ink, textAlign: 'center', marginTop: 28 },
+  ranking: { gap: 9, marginTop: 15 }, rank: { minHeight: 62, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: colors.line, borderRadius: 12, backgroundColor: colors.paper }, firstRank: { minHeight: 76, borderWidth: 2, borderColor: colors.orange }, secondRank: { borderColor: '#9d68ab' }, thirdRank: { borderColor: '#dc9f76' }, rankNumber: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#eee8e4', color: colors.ink, textAlign: 'center', lineHeight: 34, fontWeight: '800', overflow: 'hidden' }, firstRankNumber: { color: '#fff', backgroundColor: colors.orange }, secondRankNumber: { color: '#fff', backgroundColor: '#9d68ab' }, thirdRankNumber: { color: colors.ink, backgroundColor: '#dc9f76' }, rankName: { flex: 1, color: colors.ink, fontWeight: '700' }, rankScore: { color: colors.violet, fontSize: 12, fontWeight: '800' }, ownRank: { color: colors.ink, textAlign: 'center', marginTop: 28 }, podiumExplanation: { marginTop: 34, padding: 18, borderLeftWidth: 3, borderLeftColor: colors.orange, borderRadius: 10, backgroundColor: '#fff8ef' },
   urgent: { borderRadius: 16, overflow: 'hidden', backgroundColor: colors.ink, marginVertical: 36 }, urgentItem: { padding: 22, borderBottomWidth: 1, borderBottomColor: '#ffffff22' }, urgentItemLast: { borderBottomWidth: 0 }, urgentLabel: { color: '#d4c9db', fontSize: 9, letterSpacing: 1, marginBottom: 5 }, urgentNumber: { color: '#ff9b50', fontFamily: Platform.select({ ios: 'Georgia', default: 'serif' }), fontSize: 28 }, sectionTitle: { color: colors.ink, fontSize: 21, fontWeight: '800', marginBottom: 10 }, resource: { flexDirection: 'row', gap: 12, paddingVertical: 20, borderTopWidth: 1, borderTopColor: colors.line }, resourceIndex: { width: 28, color: colors.orange, fontFamily: Platform.select({ ios: 'Georgia', default: 'serif' }), fontSize: 18 }, resourceBody: { flex: 1 }, resourceType: { color: colors.violet, textTransform: 'uppercase', fontSize: 8, letterSpacing: 1.2 }, resourceName: { color: colors.ink, fontSize: 19, fontWeight: '800', marginVertical: 5 }, resourceDescription: { color: colors.muted, fontSize: 13, lineHeight: 19 }, resourcePhone: { color: colors.ink, fontSize: 17, fontWeight: '800', marginTop: 9 }, resourceArrow: { color: colors.orange, fontSize: 20 }, disclaimer: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 28 },
   adminLogin: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 50 }, adminGear: { width: 68, height: 68, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: colors.ink, marginBottom: 28 }, adminGearText: { color: colors.orange, fontSize: 39 }, adminIntro: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: -6, marginBottom: 28 }, adminHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24 }, adminTitle: { color: colors.ink, fontSize: 34, lineHeight: 38, letterSpacing: -1, fontWeight: '800' }, logout: { color: colors.violet, fontSize: 11, textDecorationLine: 'underline', paddingTop: 4 }, adminStats: { flexDirection: 'row', borderWidth: 1, borderColor: colors.line, borderRadius: 14, backgroundColor: colors.paper, marginBottom: 12, overflow: 'hidden' }, adminStat: { flex: 1, minHeight: 72, justifyContent: 'center', padding: 10, borderRightWidth: 1, borderRightColor: colors.line }, adminStatLabel: { color: colors.muted, fontSize: 7, letterSpacing: 0.7, marginBottom: 7 }, adminStatValue: { color: colors.ink, fontSize: 15, fontWeight: '800' }, resetButton: { width: '100%', minHeight: 50, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#e8e1dd', marginTop: 9 }, resetButtonLabel: { color: '#9d3043', fontWeight: '800' }, adminMessage: { color: colors.violet, fontSize: 12, textAlign: 'center', marginTop: 14 }, adminSectionTitle: { color: colors.ink, fontSize: 22, fontWeight: '800', marginTop: 40, marginBottom: 12 }, adminQuestion: { flexDirection: 'row', gap: 12, paddingVertical: 16, borderTopWidth: 1, borderTopColor: colors.line }, adminQuestionNumber: { width: 28, color: colors.orange, fontSize: 18, fontWeight: '800' }, adminQuestionPrompt: { color: colors.ink, fontSize: 14, lineHeight: 20, fontWeight: '700', marginTop: 4 }, adminAnswer: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 7 },
 })

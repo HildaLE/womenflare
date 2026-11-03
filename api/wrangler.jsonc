@@ -3,6 +3,14 @@
   "name": "womenflare",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "vars": {
+    "ADMIN_EMAILS": "hedimo@cloudflare.com,pseral@cloudflare.com,mderoquemaurel@cloudflare.com"
+  },
   "d1_databases": [
     {
       "binding": "DB",

@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "7a090ecd-4109-4fbd-8d7b-3ae0c1810d53"
+      }
+    },
+    "android": {
+      "package": "com.hildalaki.womenflare"
+    }
+  }
+}

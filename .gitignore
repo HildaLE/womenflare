@@ -32,3 +32,5 @@ mobile/android
 *.njsproj
 *.sln
 *.sw?
+
+mobile/google-service-account.json

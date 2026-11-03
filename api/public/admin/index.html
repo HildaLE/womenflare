@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <title>WomenFlare · Administration</title>
+    <link rel="stylesheet" href="/admin/styles.css">
+    <script src="/admin/app.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <section id="login-view" class="login-view">
+        <form id="login-form" class="login-card">
+          <div class="gear" aria-hidden="true">⚙</div>
+          <p class="eyebrow">Espace organisateur</p>
+          <h1>Administration</h1>
+          <p class="intro">Connectez-vous pour piloter la session et gérer les questions.</p>
+          <label for="email">Adresse e-mail</label>
+          <input id="email" name="email" type="email" autocomplete="username" placeholder="nom@cloudflare.com" required>
+          <label for="password">Mot de passe</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+          <button type="submit">Se connecter</button>
+          <p id="login-error" class="error" role="alert"></p>
+        </form>
+      </section>
+
+      <section id="dashboard" class="dashboard" hidden>
+        <header>
+          <div><p class="eyebrow">WomenFlare · régie</p><h1>Piloter le quiz</h1></div>
+          <button id="logout" class="link-button" type="button">Déconnexion</button>
+        </header>
+
+        <section class="session-panel" aria-label="État de la session">
+          <div><small>État</small><strong id="phase">…</strong></div>
+          <div><small>Participants</small><strong id="players">0</strong></div>
+          <div><small>Question</small><strong id="question-progress">—</strong></div>
+          <button id="start-session" type="button">Lancer le quiz</button>
+          <button id="next-session" type="button">Question suivante</button>
+          <button id="reset-session" class="secondary danger" type="button">Réinitialiser</button>
+        </section>
+        <p id="notice" class="notice" role="status"></p>
+
+        <nav class="content-tabs" aria-label="Contenu administrable">
+          <button id="questions-tab" class="active" type="button">Questions</button>
+          <button id="resources-tab" type="button">Ressources</button>
+        </nav>
+
+        <section id="questions-panel">
+          <div class="questions-heading">
+            <div><h2>Questions <span id="question-count"></span></h2><p>Les 20 premières questions sont jouées dans l’ordre.</p></div>
+            <button id="new-question" type="button">Nouvelle question</button>
+          </div>
+          <div id="question-list" class="question-list"></div>
+        </section>
+
+        <section id="resources-panel" hidden>
+          <div class="questions-heading">
+            <div><h2>Ressources <span id="resource-count"></span></h2><p>Ces ressources apparaissent dans l’application mobile selon leur ordre.</p></div>
+            <button id="new-resource" type="button">Nouvelle ressource</button>
+          </div>
+          <div id="resource-list" class="question-list resource-admin-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <dialog id="question-dialog">
+      <form id="question-form">
+        <div class="dialog-heading"><h2 id="dialog-title">Nouvelle question</h2><button id="close-dialog" class="close" type="button" aria-label="Fermer">×</button></div>
+        <input id="question-id" type="hidden">
+        <label for="prompt">Question</label>
+        <textarea id="prompt" minlength="10" maxlength="500" required></textarea>
+        <div class="options-grid">
+          <label>Choix A<input class="option" maxlength="300" required></label>
+          <label>Choix B<input class="option" maxlength="300" required></label>
+          <label>Choix C<input class="option" maxlength="300" required></label>
+        </div>
+        <div class="fields-grid">
+          <label for="answer-index">Bonne réponse<select id="answer-index"><option value="0">A</option><option value="1">B</option><option value="2">C</option></select></label>
+          <label for="position">Position<input id="position" type="number" min="0" max="10000" required></label>
+        </div>
+        <label for="category">Catégorie</label>
+        <input id="category" minlength="2" maxlength="120" required>
+        <label for="explanation">Explication</label>
+        <textarea id="explanation" minlength="5" maxlength="1000" required></textarea>
+        <p id="form-error" class="error" role="alert"></p>
+        <button type="submit">Enregistrer</button>
+      </form>
+    </dialog>
+
+    <dialog id="resource-dialog">
+      <form id="resource-form">
+        <div class="dialog-heading"><h2 id="resource-dialog-title">Nouvelle ressource</h2><button id="close-resource-dialog" class="close" type="button" aria-label="Fermer">×</button></div>
+        <input id="resource-id" type="hidden">
+        <label for="resource-name">Nom</label>
+        <input id="resource-name" minlength="2" maxlength="150" required>
+        <label for="resource-description">Description</label>
+        <textarea id="resource-description" minlength="5" maxlength="1000" required></textarea>
+        <label for="resource-url">URL</label>
+        <input id="resource-url" type="url" required>
+        <div class="fields-grid">
+          <label for="resource-phone">Téléphone (facultatif)<input id="resource-phone" maxlength="50"></label>
+          <label for="resource-order">Ordre<input id="resource-order" type="number" min="0" max="10000" required></label>
+        </div>
+        <label for="resource-type">Type</label>
+        <input id="resource-type" minlength="2" maxlength="120" placeholder="écoute et orientation" required>
+        <p id="resource-form-error" class="error" role="alert"></p>
+        <button type="submit">Enregistrer</button>
+      </form>
+    </dialog>
+  </body>
+</html>

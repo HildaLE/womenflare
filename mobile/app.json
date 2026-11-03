@@ -3,7 +3,10 @@
     "name": "WomenFlare",
     "slug": "womenflare",
     "version": "1.0.0",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "orientation": "portrait",
     "icon": "./assets/icon-only.png",
     "scheme": "womenflare",
@@ -21,13 +24,23 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.cloudflare.womenflare"
+      "bundleIdentifier": "com.cloudflare.womenflare",
+      "buildNumber": "2",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.cloudflare.womenflare",
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon-only.png",
         "backgroundColor": "#24143d"
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "7a090ecd-4109-4fbd-8d7b-3ae0c1810d53"
       }
     }
   }

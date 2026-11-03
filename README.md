@@ -26,7 +26,9 @@ npm run db:migrate:local
 npm run dev:api
 ```
 
-The local API is available at `http://localhost:8787/api`. The example admin login is `admin@cloudflare.com` with password `Cloudflare2026!`. Before deployment, replace the placeholder D1 `database_id` in `api/wrangler.jsonc` and configure `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `SESSION_SECRET` as Worker secrets. Use a different production password.
+The local API is available at `http://localhost:8787/api`. Authorized administrators are `hedimo@cloudflare.com`, `pseral@cloudflare.com`, and `mderoquemaurel@cloudflare.com`; the development password is `Cloudflare2026!`. Before deployment, verify the D1 binding and `ADMIN_EMAILS` allowlist in `api/wrangler.jsonc`, then configure `ADMIN_PASSWORD` and `SESSION_SECRET` as Worker secrets.
+
+The browser administration console is available at `http://localhost:8787/admin` locally and at `/admin` on the deployed Worker. It can start, advance, or reset the session and create, edit, or delete questions.
 
 Deploy only the backend with:
 
@@ -50,6 +52,11 @@ npm run dev:mobile
 ```
 
 Native development builds can be launched from `mobile` with `npm run ios` or `npm run android`. Production builds can use EAS Build from that directory.
+
+Store submission configuration and the required public URLs are documented in `mobile/STORE_SUBMISSION.md`:
+
+- Privacy: `https://womenflare.hilda-demo-account1783.workers.dev/privacy/`
+- Support: `https://womenflare.hilda-demo-account1783.workers.dev/support/`
 
 ## Verification
 
