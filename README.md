@@ -28,7 +28,81 @@ npm run dev:api
 
 The local API is available at `http://localhost:8787/api`. Authorized administrators are `hedimo@cloudflare.com`, `pseral@cloudflare.com`, and `mderoquemaurel@cloudflare.com`; the development password is `Cloudflare2026!`. Before deployment, verify the D1 binding and `ADMIN_EMAILS` allowlist in `api/wrangler.jsonc`, then configure `ADMIN_PASSWORD` and `SESSION_SECRET` as Worker secrets.
 
-The browser administration console is available at `http://localhost:8787/admin` locally and at `/admin` on the deployed Worker. It can start, advance, or reset the session and create, edit, or delete questions.
+### Session lifecycle
+
+A single Durable Object named `main-event` holds the whole live session. It moves through five phases:
+
+```text
+waiting --start--> question (15 s) --auto--> reveal (5 s) --auto--> checkpoint --next--> question ...
+                                                                        |
+                                                            after 20 questions: finished
+```
+
+- Participants can join only during `waiting`, and display names must be unique.
+- A correct answer is worth 500 points plus up to 500 more for speed, so 1 000 maximum.
+- `question -> reveal -> checkpoint` is automatic, driven by Durable Object alarms. Only `checkpoint -> question` needs an administrator, which is what the **Question suivante** button does.
+- All participant data lives in Durable Object storage, never in D1, and is deleted 24 hours after the quiz ends.
+
+### Administration console
+
+The browser console is available at `http://localhost:8787/admin` locally and at `/admin` on the deployed Worker. Sign in with an allowlisted address; the bearer token is kept in `sessionStorage` and expires after eight hours.
+
+The session panel at the top is always visible and drives the live quiz:
+
+| Control | Available when | Effect |
+| --- | --- | --- |
+| Lancer le quiz | phase is `waiting` | Loads the first 20 questions by `position` and starts question 1 |
+| Question suivante | phase is `checkpoint` | Starts the next question |
+| Réinitialiser | always | Deletes the session and every participant |
+
+There is deliberately no reveal button: the answer and the leaderboard appear on their own.
+
+Three tabs sit below the panel:
+
+- **Questions** — create, edit, delete. Exactly 20 questions must exist or the quiz refuses to start.
+- **Ressources** — create, edit, delete the help resources listed in the mobile application.
+- **Projection** — the screen to show on a video projector, described next.
+
+### Projection screen
+
+The **Projection** tab renders a dark full-width stage that mirrors the live session for the audience, in the spirit of Kahoot. The **Plein écran** button hands it to the projector.
+
+| Phase | The stage shows |
+| --- | --- |
+| `waiting` | Holding screen and the number of connected participants |
+| `question` | Category, prompt, options A/B/C, countdown, and `n / N réponses reçues` |
+| `reveal` | Correct option highlighted in green, votes received per option, explanation |
+| `checkpoint` | Palmarès: top five participants and their scores, after every question |
+| `finished` | The same ranking, titled `Classement final` |
+
+It reads `GET /api/admin/session/board` once per second. During the `question` phase that endpoint returns no correct answer and no vote counts, so nothing can be read off the projected screen before the timer ends.
+
+The stage lives inside the admin page, so a single browser window shows either the controls or the fullscreen stage, not both. For a two-screen setup, open `/admin` in a second window on the projector display and sign in there as well.
+
+### API routes
+
+Public routes need no credentials; a participant is identified by the opaque `playerId` returned at join time. Every `/api/admin/*` route requires `Authorization: Bearer <token>` from `POST /api/admin/login`.
+
+| Route | Purpose |
+| --- | --- |
+| `GET /api/health` | Liveness check, also pings D1 |
+| `GET /api/resources` | Help resources and the legal disclaimer shown in the application |
+| `POST /api/session/join` | Join during `waiting`, returns `playerId` and the initial state |
+| `GET /api/session/state?playerId=` | Participant view of the session, polled twice per second by the application |
+| `POST /api/session/answer` | Submit `optionIndex` for the current question |
+| `POST /api/admin/login` | Exchange email and password for a token, rate limited |
+| `GET /api/admin/session/state` | Session state for the control panel |
+| `GET /api/admin/session/board` | Richer state for the projection screen: vote counts and top five |
+| `POST /api/admin/session/start` \| `next` \| `reset` | Drive the session |
+| `/api/admin/questions`, `/api/admin/resources` | Full CRUD, `GET` `POST` `PUT /:id` `DELETE /:id` |
+
+Errors always use the same envelope, with French messages:
+
+```json
+{ "error": { "code": "invalid_phase", "message": "La question en cours doit être terminée." } }
+```
+
+### Deploy
 
 Deploy only the backend with:
 

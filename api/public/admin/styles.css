@@ -54,6 +54,40 @@ button { border: 0; border-radius: 10px; padding: 13px 18px; color: white; backg
 .question-list button { padding: 9px 11px; font-size: 10px; }
 .text-danger { background: transparent; }
 
+.stage { display: flex; flex-direction: column; gap: clamp(14px, 1.8vw, 26px); min-height: 440px; padding: clamp(20px, 2.6vw, 44px); border-radius: 20px; color: #fffdf9; background: radial-gradient(circle at 86% 6%, #633f84 0 13%, transparent 32%), #24143d; }
+.stage:fullscreen { min-height: 100vh; border-radius: 0; padding: clamp(24px, 3vw, 64px); }
+.stage .eyebrow { color: #d8c1e0; }
+.stage h3 { margin: 0; font-size: clamp(25px, 3.1vw, 56px); line-height: 1.06; letter-spacing: -1.4px; }
+.stage-top { display: flex; align-items: center; gap: 16px; }
+.stage-category { flex: 1; margin: 0; color: #f6821f; font-size: clamp(10px, .95vw, 15px); font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; }
+.stage-step { margin: 0; color: #cec2d5; font-size: clamp(10px, .95vw, 15px); font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; }
+.stage-timer { display: grid; place-items: center; min-width: clamp(48px, 4.6vw, 86px); padding: 5px 12px; border-radius: 999px; color: #24143d; background: #f6821f; font-size: clamp(20px, 2.2vw, 38px); font-weight: 800; font-variant-numeric: tabular-nums; }
+.stage-progress { height: 6px; border-radius: 999px; background: #ffffff24; overflow: hidden; }
+.stage-progress span { display: block; width: 0; height: 100%; border-radius: 999px; background: #f6821f; transition: width .35s ease; }
+.stage-idle, .stage-question, .stage-board { display: flex; flex-direction: column; gap: clamp(13px, 1.6vw, 26px); }
+.stage-idle p:last-child { margin: 0; color: #cec2d5; font-size: clamp(14px, 1.3vw, 21px); }
+.stage-options { display: grid; gap: clamp(8px, .9vw, 14px); }
+.stage-option { position: relative; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: clamp(10px, 1.2vw, 20px); padding: clamp(11px, 1.3vw, 20px); border: 1px solid #ffffff2e; border-radius: 14px; background: #ffffff14; overflow: hidden; }
+.stage-option i { position: absolute; inset: 0 auto 0 0; width: 0; background: #ffffff1f; transition: width .45s ease; }
+.stage-option b, .stage-option span, .stage-option em { position: relative; }
+.stage-option b { display: grid; place-items: center; width: clamp(30px, 2.5vw, 46px); height: clamp(30px, 2.5vw, 46px); border-radius: 10px; color: #24143d; background: #e7dcf1; font-size: clamp(13px, 1.2vw, 21px); }
+.stage-option span { font-size: clamp(15px, 1.6vw, 28px); font-weight: 600; line-height: 1.3; }
+.stage-option em { color: #cec2d5; font-size: clamp(11px, 1.1vw, 18px); font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stage-option.correct { border-color: #7fcf9e; background: #4f8b6952; }
+.stage-option.correct b { background: #7fcf9e; }
+.stage-option.correct i { background: #7fcf9e2e; }
+.stage-option.correct em { color: #c7edd6; }
+.stage-explanation { margin: 0; padding: clamp(12px, 1.3vw, 22px); border-left: 4px solid #f6821f; border-radius: 0 12px 12px 0; color: #e7dcf1; background: #ffffff12; font-size: clamp(13px, 1.25vw, 21px); line-height: 1.6; }
+.stage-ranking { display: grid; gap: clamp(7px, .8vw, 12px); margin: 0; padding: 0; list-style: none; }
+.stage-ranking li { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: clamp(10px, 1.2vw, 20px); padding: clamp(10px, 1.1vw, 18px); border-left: 4px solid #633f84; border-radius: 0 12px 12px 0; background: #ffffff14; }
+.stage-ranking li:nth-child(1) { border-left-color: #f6821f; }
+.stage-ranking li:nth-child(2) { border-left-color: #9d68ab; }
+.stage-ranking li:nth-child(3) { border-left-color: #dc9f76; }
+.stage-ranking b { color: #cec2d5; font-size: clamp(13px, 1.3vw, 22px); font-variant-numeric: tabular-nums; }
+.stage-ranking span { font-size: clamp(15px, 1.6vw, 28px); font-weight: 600; overflow-wrap: anywhere; }
+.stage-ranking em { color: #f6821f; font-size: clamp(13px, 1.4vw, 24px); font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stage-footer { margin: auto 0 0; color: #a494b4; font-size: clamp(9px, .9vw, 13px); font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; }
+
 dialog { width: min(760px, calc(100% - 30px)); max-height: calc(100vh - 40px); padding: 0; border: 0; border-radius: 16px; background: #f7f3ee; box-shadow: 0 30px 90px #160a2666; }
 dialog::backdrop { background: #160a26b8; }
 #question-form, #resource-form { padding: 28px; }

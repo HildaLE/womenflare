@@ -6,6 +6,7 @@ const MAX_SPEED_BONUS_POINTS = 500;
 const SESSION_RETENTION_MS = 24 * 60 * 60_000;
 const QUIZ_LENGTH = 20;
 const TOKEN_TTL_SECONDS = 8 * 60 * 60;
+const BOARD_LEADERBOARD_SIZE = 5;
 
 interface D1Result<T> {
   results: T[];
@@ -514,6 +515,9 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
   if (pathname === "/api/admin/session/state" && request.method === "GET") {
     return callSession(env, "/admin/state", request);
   }
+  if (pathname === "/api/admin/session/board" && request.method === "GET") {
+    return callSession(env, "/admin/board", request);
+  }
   if (pathname === "/api/admin/session/reset" && request.method === "POST") {
     return callSession(env, "/admin/reset", request);
   }
@@ -624,6 +628,39 @@ export class QuizSession {
       result.leaderboard = ranking.slice(0, 3);
     }
     return result;
+  }
+
+  private boardState(session: SessionData): Record<string, unknown> {
+    const players = Object.values(session.players);
+    const question = session.phase !== "waiting" ? session.questions[session.questionIndex] : undefined;
+    const revealed = session.phase === "reveal" || session.phase === "checkpoint" || session.phase === "finished";
+    const optionCounts = [0, 0, 0];
+    let answeredCount = 0;
+    if (question) {
+      for (const player of players) {
+        const selected = player.answers[String(question.id)];
+        if (selected === undefined) continue;
+        answeredCount += 1;
+        if (selected >= 0 && selected < optionCounts.length) optionCounts[selected] += 1;
+      }
+    }
+    return {
+      sessionId: EVENT_SESSION_ID,
+      phase: session.phase,
+      questionIndex: session.questionIndex,
+      questionCount: session.questions.length || QUIZ_LENGTH,
+      deadline: session.deadline,
+      questionDurationMs: QUESTION_DURATION_MS,
+      playersCount: players.length,
+      answeredCount,
+      question: question
+        ? { id: question.id, prompt: question.prompt, options: question.options, category: question.category }
+        : null,
+      answerIndex: revealed && question ? question.answerIndex : null,
+      explanation: revealed && question ? question.explanation : null,
+      optionCounts: revealed && question ? optionCounts : null,
+      leaderboard: this.leaderboard(session).slice(0, BOARD_LEADERBOARD_SIZE),
+    };
   }
 
   private normalizeName(name: string): { display: string; normalized: string } {
@@ -740,6 +777,10 @@ export class QuizSession {
 
       if (url.pathname === "/admin/state" && request.method === "GET") {
         return json(this.publicState(session, undefined));
+      }
+
+      if (url.pathname === "/admin/board" && request.method === "GET") {
+        return json(this.boardState(session));
       }
 
       throw new HttpError(404, "Route interne introuvable.", "not_found");

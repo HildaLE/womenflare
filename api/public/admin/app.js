@@ -1,10 +1,15 @@
 const tokenKey = 'womenflare-admin-token'
 const labels = ['A', 'B', 'C']
+const phaseLabels = { waiting: 'En attente', question: 'Question', reveal: 'Réponse', checkpoint: 'Palmarès', finished: 'Terminé' }
+const panels = { questions: 'questions-panel', resources: 'resources-panel', present: 'present-panel' }
 let token = sessionStorage.getItem(tokenKey) || ''
 let questions = []
 let resources = []
 let session = null
+let board = null
+let presenting = false
 let poller = null
+let ticker = null
 
 const byId = (id) => document.getElementById(id)
 const loginView = byId('login-view')
@@ -34,7 +39,10 @@ async function request(path, options = {}) {
 function setAuthenticated(authenticated) {
   loginView.hidden = authenticated
   dashboard.hidden = !authenticated
-  if (!authenticated && poller) clearInterval(poller)
+  if (!authenticated) {
+    if (poller) clearInterval(poller)
+    stopTicking()
+  }
 }
 
 function setNotice(message, error = false) {
@@ -43,7 +51,7 @@ function setNotice(message, error = false) {
 }
 
 function renderSession() {
-  byId('phase').textContent = session?.phase || '…'
+  byId('phase').textContent = phaseLabels[session?.phase] || '…'
   byId('players').textContent = String(session?.playersCount || 0)
   byId('question-progress').textContent = session && session.questionIndex >= 0 ? `${session.questionIndex + 1}/${session.questionCount}` : '—'
   byId('start-session').disabled = session?.phase !== 'waiting'
@@ -137,8 +145,15 @@ async function loadAll() {
 
 async function refreshSession() {
   try {
-    session = await request('/api/admin/session/state')
-    renderSession()
+    if (presenting) {
+      board = await request('/api/admin/session/board')
+      session = board
+      renderSession()
+      renderStage()
+    } else {
+      session = await request('/api/admin/session/state')
+      renderSession()
+    }
   } catch (error) {
     if (error.status === 401) logout()
     else setNotice(error.message, true)
@@ -148,6 +163,107 @@ async function refreshSession() {
 function beginPolling() {
   if (poller) clearInterval(poller)
   poller = setInterval(() => void refreshSession(), 1000)
+}
+
+function renderTimer() {
+  const node = byId('stage-timer')
+  if (!board || board.phase !== 'question' || !board.deadline) {
+    node.textContent = '—'
+    return
+  }
+  node.textContent = String(Math.max(0, Math.ceil((board.deadline - Date.now()) / 1000)))
+}
+
+function beginTicking() {
+  if (ticker) clearInterval(ticker)
+  ticker = setInterval(renderTimer, 200)
+  renderTimer()
+}
+
+function stopTicking() {
+  if (ticker) clearInterval(ticker)
+  ticker = null
+}
+
+function renderStageQuestion() {
+  byId('stage-prompt').textContent = board.question?.prompt || ''
+  const list = byId('stage-options')
+  const counts = board.optionCounts
+  const highest = counts ? Math.max(1, ...counts) : 0
+  list.replaceChildren()
+  for (const [index, option] of (board.question?.options || []).entries()) {
+    const row = document.createElement('div')
+    row.className = counts && index === board.answerIndex ? 'stage-option correct' : 'stage-option'
+    const fill = document.createElement('i')
+    if (counts) fill.style.width = `${Math.round((counts[index] / highest) * 100)}%`
+    const letter = document.createElement('b')
+    letter.textContent = labels[index]
+    const text = document.createElement('span')
+    text.textContent = option
+    row.append(fill, letter, text)
+    if (counts) {
+      const tally = document.createElement('em')
+      tally.textContent = counts[index] > 1 ? `${counts[index]} réponses` : `${counts[index]} réponse`
+      row.append(tally)
+    }
+    list.append(row)
+  }
+  const explanation = byId('stage-explanation')
+  explanation.textContent = board.explanation || ''
+  explanation.hidden = !board.explanation
+}
+
+function renderStageBoard() {
+  const finished = board.phase === 'finished'
+  const answered = board.questionIndex + 1
+  byId('stage-board-eyebrow').textContent = finished
+    ? 'Classement final'
+    : answered > 1 ? `Palmarès après ${answered} questions` : 'Palmarès après 1 question'
+  byId('stage-board-title').textContent = finished ? 'Merci d’avoir participé.' : 'Le podium se dessine.'
+  const list = byId('stage-ranking')
+  list.replaceChildren()
+  for (const entry of board.leaderboard || []) {
+    const item = document.createElement('li')
+    const rank = document.createElement('b')
+    rank.textContent = `#${entry.rank}`
+    const name = document.createElement('span')
+    name.textContent = entry.name
+    const score = document.createElement('em')
+    score.textContent = `${entry.score} pts`
+    item.append(rank, name, score)
+    list.append(item)
+  }
+  if (!list.childElementCount) {
+    const item = document.createElement('li')
+    const name = document.createElement('span')
+    name.textContent = 'Aucune réponse enregistrée pour l’instant.'
+    item.append(document.createElement('b'), name)
+    list.append(item)
+  }
+}
+
+function renderStage() {
+  if (!board) return
+  const showQuestion = board.phase === 'question' || board.phase === 'reveal'
+  const showBoard = board.phase === 'checkpoint' || board.phase === 'finished'
+  const people = board.playersCount
+  byId('stage-category').textContent = board.question?.category || 'WomenFlare'
+  byId('stage-step').textContent = board.questionIndex >= 0
+    ? `Question ${board.questionIndex + 1} sur ${board.questionCount}`
+    : 'Session non démarrée'
+  byId('stage-progress-bar').style.width = board.questionIndex >= 0
+    ? `${Math.round(((board.questionIndex + 1) / board.questionCount) * 100)}%`
+    : '0%'
+  byId('stage-footer').textContent = board.phase === 'question'
+    ? `${board.answeredCount} / ${people} réponses reçues`
+    : people > 1 ? `${people} participants connectés` : `${people} participant connecté`
+  byId('stage-idle').hidden = board.phase !== 'waiting'
+  byId('stage-question').hidden = !showQuestion
+  byId('stage-board').hidden = !showBoard
+  byId('stage-timer').hidden = board.phase !== 'question'
+  if (showQuestion) renderStageQuestion()
+  if (showBoard) renderStageBoard()
+  renderTimer()
 }
 
 function logout() {
@@ -188,6 +304,7 @@ async function sessionAction(action) {
     session = await request(`/api/admin/session/${action}`, { method: 'POST' })
     renderSession()
     setNotice(action === 'start' ? 'Quiz lancé.' : action === 'next' ? 'Étape suivante lancée.' : 'Session réinitialisée.')
+    if (presenting) await refreshSession()
   } catch (error) {
     setNotice(error.message, true)
   }
@@ -200,15 +317,34 @@ byId('reset-session').addEventListener('click', () => {
 })
 
 function showContentPanel(panel) {
-  const showQuestions = panel === 'questions'
-  byId('questions-panel').hidden = !showQuestions
-  byId('resources-panel').hidden = showQuestions
-  byId('questions-tab').classList.toggle('active', showQuestions)
-  byId('resources-tab').classList.toggle('active', !showQuestions)
+  for (const [name, id] of Object.entries(panels)) {
+    byId(id).hidden = name !== panel
+    byId(`${name}-tab`).classList.toggle('active', name === panel)
+  }
+  presenting = panel === 'present'
+  if (presenting) {
+    beginTicking()
+    void refreshSession()
+  } else stopTicking()
 }
 
 byId('questions-tab').addEventListener('click', () => showContentPanel('questions'))
 byId('resources-tab').addEventListener('click', () => showContentPanel('resources'))
+byId('present-tab').addEventListener('click', () => showContentPanel('present'))
+
+byId('fullscreen-stage').addEventListener('click', () => {
+  const stage = byId('stage')
+  if (document.fullscreenElement) {
+    void document.exitFullscreen()
+    return
+  }
+  const started = stage.requestFullscreen ? stage.requestFullscreen() : null
+  if (started) started.catch(() => setNotice('Le navigateur a refusé le plein écran.', true))
+})
+
+document.addEventListener('fullscreenchange', () => {
+  byId('fullscreen-stage').textContent = document.fullscreenElement ? 'Quitter le plein écran' : 'Plein écran'
+})
 
 function openEditor(question) {
   byId('dialog-title').textContent = question ? `Question ${question.position}` : 'Nouvelle question'
