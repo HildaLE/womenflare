@@ -146,7 +146,7 @@ async function loadAll() {
 async function refreshSession() {
   try {
     if (presenting) {
-      board = await request('/api/admin/session/board')
+      board = await request('/api/session/board')
       session = board
       renderSession()
       renderStage()

@@ -410,6 +410,9 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
     const playerId = url.searchParams.get("playerId") ?? "";
     return callSession(env, `/state?playerId=${encodeURIComponent(playerId)}`, request);
   }
+  if (pathname === "/api/session/board" && request.method === "GET") {
+    return callSession(env, "/board", request);
+  }
   if (pathname === "/api/session/answer" && request.method === "POST") {
     return callSession(env, "/answer", request);
   }
@@ -514,9 +517,6 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
   }
   if (pathname === "/api/admin/session/state" && request.method === "GET") {
     return callSession(env, "/admin/state", request);
-  }
-  if (pathname === "/api/admin/session/board" && request.method === "GET") {
-    return callSession(env, "/admin/board", request);
   }
   if (pathname === "/api/admin/session/reset" && request.method === "POST") {
     return callSession(env, "/admin/reset", request);
@@ -701,6 +701,10 @@ export class QuizSession {
         return json({ playerId: player.id, state: this.publicState(session, player) }, 201);
       }
 
+      if (url.pathname === "/board" && request.method === "GET") {
+        return json(this.boardState(session));
+      }
+
       if (url.pathname === "/state" && request.method === "GET") {
         const playerId = url.searchParams.get("playerId") ?? "";
         const player = session.players[playerId];
@@ -779,9 +783,7 @@ export class QuizSession {
         return json(this.publicState(session, undefined));
       }
 
-      if (url.pathname === "/admin/board" && request.method === "GET") {
-        return json(this.boardState(session));
-      }
+
 
       throw new HttpError(404, "Route interne introuvable.", "not_found");
     } catch (error) {

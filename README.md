@@ -41,7 +41,7 @@ waiting --start--> question (15 s) --auto--> reveal (5 s) --auto--> checkpoint -
 - Participants can join only during `waiting`, and display names must be unique.
 - A correct answer is worth 500 points plus up to 500 more for speed, so 1 000 maximum.
 - `question -> reveal -> checkpoint` is automatic, driven by Durable Object alarms. Only `checkpoint -> question` needs an administrator, which is what the **Question suivante** button does.
-- All participant data lives in Durable Object storage, never in D1, and is deleted 24 hours after the quiz ends.
+- All participant data lives in Durable Object storage, never in D1. It is erased immediately when an administrator presses **Réinitialiser**, and otherwise by an automatic alarm 24 hours after the last question. Resetting after the event is the fastest way to leave nothing behind.
 
 ### Administration console
 
@@ -61,11 +61,13 @@ Three tabs sit below the panel:
 
 - **Questions** — create, edit, delete. Exactly 20 questions must exist or the quiz refuses to start.
 - **Ressources** — create, edit, delete the help resources listed in the mobile application.
-- **Projection** — the screen to show on a video projector, described next.
+- **Projection** — a preview of the public `/ecran/` page, described next.
 
 ### Projection screen
 
-The **Projection** tab renders a dark full-width stage that mirrors the live session for the audience, in the spirit of Kahoot. The **Plein écran** button hands it to the projector.
+`/ecran/` is a public page, with no login of any kind, meant to be opened on the machine driving the video projector. It mirrors the live session for the room in the spirit of Kahoot. The discreet **Plein écran** button in the corner hands it to the projector; everything else is automatic, there is nothing to click during the event.
+
+The same stage is also available as the **Projection** tab of the admin console, as a preview for the operator. Both read the same data and share `api/public/stage.css`.
 
 | Phase | The stage shows |
 | --- | --- |
@@ -75,9 +77,12 @@ The **Projection** tab renders a dark full-width stage that mirrors the live ses
 | `checkpoint` | Palmarès: top five participants and their scores, after every question |
 | `finished` | The same ranking, titled `Classement final` |
 
-It reads `GET /api/admin/session/board` once per second. During the `question` phase that endpoint returns no correct answer and no vote counts, so nothing can be read off the projected screen before the timer ends.
+It reads `GET /api/session/board` once per second. That route is public, so keep in mind what it deliberately does and does not expose:
 
-The stage lives inside the admin page, so a single browser window shows either the controls or the fullscreen stage, not both. For a two-screen setup, open `/admin` in a second window on the projector display and sign in there as well.
+- During the `question` phase it returns no correct answer, no explanation and no vote counts. The URL therefore cannot be used to cheat while a question is open.
+- From the `reveal` phase onward it returns the correct answer, the number of votes per option, the explanation, and the first names or pseudonyms of the top five with their scores. This is the same information the room sees on the projector.
+
+Typical event setup: the operator keeps `/admin/` on the laptop for **Lancer le quiz** and **Question suivante**, while `/ecran/` runs fullscreen on the projector display.
 
 ### API routes
 
@@ -90,9 +95,9 @@ Public routes need no credentials; a participant is identified by the opaque `pl
 | `POST /api/session/join` | Join during `waiting`, returns `playerId` and the initial state |
 | `GET /api/session/state?playerId=` | Participant view of the session, polled twice per second by the application |
 | `POST /api/session/answer` | Submit `optionIndex` for the current question |
+| `GET /api/session/board` | Room view used by `/ecran/`: vote counts and top five, nothing revealing while a question is open |
 | `POST /api/admin/login` | Exchange email and password for a token, rate limited |
 | `GET /api/admin/session/state` | Session state for the control panel |
-| `GET /api/admin/session/board` | Richer state for the projection screen: vote counts and top five |
 | `POST /api/admin/session/start` \| `next` \| `reset` | Drive the session |
 | `/api/admin/questions`, `/api/admin/resources` | Full CRUD, `GET` `POST` `PUT /:id` `DELETE /:id` |
 

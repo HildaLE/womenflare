@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <meta name="robots" content="noindex, nofollow">
+    <title>WomenFlare · Écran</title>
+    <link rel="stylesheet" href="/stage.css">
+    <script src="/ecran/app.js" defer></script>
+  </head>
+  <body class="screen">
+    <main id="stage" class="stage">
+      <div class="stage-top">
+        <p id="stage-category" class="stage-category">WomenFlare</p>
+        <p id="stage-step" class="stage-step">Connexion…</p>
+        <div id="stage-timer" class="stage-timer" hidden>15</div>
+      </div>
+      <div class="stage-progress"><span id="stage-progress-bar"></span></div>
+
+      <div id="stage-idle" class="stage-idle">
+        <p class="eyebrow">WomenFlare · 25 novembre</p>
+        <h3 id="stage-idle-title">En attente du lancement</h3>
+        <p id="stage-idle-note">Les participantes et participants rejoignent la session.</p>
+      </div>
+
+      <div id="stage-question" class="stage-question" hidden>
+        <h3 id="stage-prompt"></h3>
+        <div id="stage-options" class="stage-options"></div>
+        <p id="stage-explanation" class="stage-explanation" hidden></p>
+      </div>
+
+      <div id="stage-board" class="stage-board" hidden>
+        <p id="stage-board-eyebrow" class="eyebrow">Palmarès</p>
+        <h3 id="stage-board-title">Le podium se dessine.</h3>
+        <ol id="stage-ranking" class="stage-ranking"></ol>
+      </div>
+
+      <p id="stage-footer" class="stage-footer">Connexion à la session…</p>
+    </main>
+    <button id="fullscreen-stage" class="stage-fullscreen" type="button">Plein écran</button>
+  </body>
+</html>
