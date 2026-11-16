@@ -26,7 +26,6 @@ npm run db:migrate:local
 npm run dev:api
 ```
 
-The local API is available at `http://localhost:8787/api`. Authorized administrators are `hedimo@cloudflare.com`, `pseral@cloudflare.com`, and `mderoquemaurel@cloudflare.com`; the development password is `Cloudflare2026!`. Before deployment, verify the D1 binding and `ADMIN_EMAILS` allowlist in `api/wrangler.jsonc`, then configure `ADMIN_PASSWORD` and `SESSION_SECRET` as Worker secrets.
 
 ### Session lifecycle
 
