@@ -3,11 +3,11 @@
 WomenFlare is split into two independently deployable projects:
 
 ```text
-api/      Cloudflare Worker, Durable Object, D1 schema and admin API
+api/      Cloudflare Worker, Durable Object, D1 schema, admin API and the web pages in api/public/
 mobile/   Expo application for iOS and Android
 ```
 
-The mobile application calls the Worker directly through `EXPO_PUBLIC_API_URL`. The API does not build or serve the mobile frontend.
+The mobile application calls the Worker directly through `EXPO_PUBLIC_API_URL`. The API does not build or serve the mobile frontend. Participants without the application can play from any browser on the `/quiz/` page served by the Worker, described below.
 
 ## Install
 
@@ -60,7 +60,7 @@ There is deliberately no reveal button: the answer and the leaderboard appear on
 Three tabs sit below the panel:
 
 - **Questions** — create, edit, delete. Exactly 20 questions must exist or the quiz refuses to start.
-- **Ressources** — create, edit, delete the help resources listed in the mobile application.
+- **Ressources** — create, edit, delete the help resources listed in the mobile application and on `/quiz/`.
 - **Projection** — a preview of the public `/ecran/` page, described next.
 
 ### Projection screen
@@ -84,6 +84,12 @@ It reads `GET /api/session/board` once per second. That route is public, so keep
 
 Typical event setup: the operator keeps `/admin/` on the laptop for **Lancer le quiz** and **Question suivante**, while `/ecran/` runs fullscreen on the projector display.
 
+### Participant page
+
+`/quiz/` is the browser version of the mobile application for participants: same live session, same **Quiz** and **Ressources** tabs, no install and no login. Share `https://<worker-origin>/quiz/` (a QR code works well) and participants join with a name exactly as they do in the application; both kinds of participants play together in the same session and ranking.
+
+It is plain HTML, CSS and JavaScript in `api/public/quiz/`, deployed with the Worker, and uses the same public routes as the application. The `playerId` is kept in `localStorage`, so reloading the page resumes the session; when an administrator resets the session, the page returns to the join form on its own.
+
 ### API routes
 
 Public routes need no credentials; a participant is identified by the opaque `playerId` returned at join time. Every `/api/admin/*` route requires `Authorization: Bearer <token>` from `POST /api/admin/login`.
@@ -93,7 +99,7 @@ Public routes need no credentials; a participant is identified by the opaque `pl
 | `GET /api/health` | Liveness check, also pings D1 |
 | `GET /api/resources` | Help resources and the legal disclaimer shown in the application |
 | `POST /api/session/join` | Join during `waiting`, returns `playerId` and the initial state |
-| `GET /api/session/state?playerId=` | Participant view of the session, polled twice per second by the application |
+| `GET /api/session/state?playerId=` | Participant view of the session, polled twice per second by the application and `/quiz/` |
 | `POST /api/session/answer` | Submit `optionIndex` for the current question |
 | `GET /api/session/board` | Room view used by `/ecran/`: vote counts and top five, nothing revealing while a question is open |
 | `POST /api/admin/login` | Exchange email and password for a token, rate limited |

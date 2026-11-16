@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="Participez au quiz WomenFlare du 25 novembre depuis votre navigateur.">
+    <title>WomenFlare · Quiz</title>
+    <link rel="stylesheet" href="/quiz/styles.css">
+    <script src="/quiz/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/quiz/"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>WomenFlare</a>
+      <nav class="tabs" aria-label="Sections">
+        <button id="quiz-tab" class="active" type="button" aria-pressed="true">Quiz</button>
+        <button id="resources-tab" type="button" aria-pressed="false">Ressources</button>
+      </nav>
+    </header>
+
+    <main>
+      <noscript><p class="error">Activez JavaScript pour participer au quiz.</p></noscript>
+
+      <section id="quiz-panel">
+        <form id="join-view" class="join" hidden>
+          <div class="date-card" aria-hidden="true"><b>25</b><span>Novembre</span></div>
+          <p class="eyebrow">Journée internationale du 25 novembre</p>
+          <h1 class="hero">Voir les biais.<br><em>Changer les réflexes.</em></h1>
+          <p class="lead">20 situations du quotidien professionnel. Un temps court pour choisir, un temps collectif pour comprendre.</p>
+          <label for="name">Votre nom ou pseudo</label>
+          <input id="name" name="name" type="text" autocomplete="nickname" autocapitalize="words" enterkeyhint="go" maxlength="40" placeholder="Ex. Camille" required>
+          <button id="join-button" class="primary" type="submit">Rejoindre</button>
+          <p id="join-error" class="error" role="alert"></p>
+          <p class="quiet">● 15 secondes · jusqu’à 1 000 points selon la rapidité · podium après chaque question</p>
+        </form>
+
+        <div id="connecting-view" class="centered" hidden>
+          <span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <p class="muted">Connexion à la session…</p>
+        </div>
+
+        <div id="waiting-view" class="centered" hidden>
+          <span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <p class="eyebrow">Vous êtes dans la session</p>
+          <h1>Bienvenue.</h1>
+          <p id="waiting-note" class="lead" role="status"></p>
+        </div>
+
+        <div id="question-view" hidden>
+          <div class="question-meta">
+            <p id="category" class="category"></p>
+            <div id="countdown" class="countdown" role="timer" aria-label="Secondes restantes"><b id="countdown-number">0</b><span>sec.</span></div>
+          </div>
+          <p id="question-step" class="eyebrow"></p>
+          <h1 id="prompt" class="question-title"></h1>
+          <div id="progress" class="progress"><span id="progress-bar"></span></div>
+          <div id="answers" class="answers"></div>
+          <p id="saved" class="saved" role="status" hidden>Réponse enregistrée. La correction arrive à la fin du temps.</p>
+          <p id="answer-error" class="error" role="alert"></p>
+          <div id="explanation" class="explanation" hidden><small>À retenir</small><p id="explanation-text"></p></div>
+          <button id="help-link" class="text-link" type="button">Besoin d’aide maintenant ? Voir les ressources</button>
+        </div>
+
+        <div id="board-view" hidden>
+          <p id="board-eyebrow" class="eyebrow"></p>
+          <h1 id="board-title"></h1>
+          <ol id="ranking" class="ranking"></ol>
+          <p id="own-rank" class="own-rank" hidden></p>
+          <div id="board-explanation" class="explanation rounded" hidden><small>À retenir</small><p id="board-explanation-text"></p></div>
+        </div>
+
+        <p id="connection-error" class="error" role="status"></p>
+      </section>
+
+      <section id="resources-panel" hidden>
+        <p class="eyebrow">Après l’événement</p>
+        <h1>Comprendre,<br><em>écouter, agir.</em></h1>
+        <p class="lead left">Des ressources officielles et spécialisées à garder sous la main, pour soi, une collègue ou un proche.</p>
+        <div class="urgent">
+          <a href="tel:112"><small>Danger immédiat</small><b>17 ou 112</b></a>
+          <a href="sms:114"><small>SMS · sourds et malentendants</small><b>114</b></a>
+        </div>
+        <h2>Écoute et accompagnement</h2>
+        <div id="resource-list"></div>
+        <p id="resources-error" class="error" role="alert"></p>
+        <p id="disclaimer" class="disclaimer"></p>
+      </section>
+    </main>
+
+    <footer><span>WomenFlare · Cloudflare France</span><span><a href="/privacy/">Confidentialité</a> · <a href="/support/">Assistance</a></span></footer>
+  </body>
+</html>
