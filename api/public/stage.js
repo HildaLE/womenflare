@@ -69,7 +69,7 @@ window.WomenFlareStage = (() => {
       piece.style.left = `${Math.random() * 100}%`
       piece.style.background = confettiColors[index % confettiColors.length]
       piece.style.animationDuration = `${2.6 + Math.random() * 2.4}s`
-      piece.style.animationDelay = `${16 + Math.random() * 2.5}s`
+      piece.style.animationDelay = `${12 + Math.random() * 2.5}s`
       layer.append(piece)
     }
     return layer
