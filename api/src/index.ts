@@ -1,5 +1,6 @@
 const EVENT_SESSION_ID = "main-event";
-const QUESTION_DURATION_MS = 15_000;
+const QUESTION_DURATION_MS = 30_000;
+const START_COUNTDOWN_MS = 5_000;
 const REVEAL_DURATION_MS = 5_000;
 const CORRECT_ANSWER_POINTS = 500;
 const MAX_SPEED_BONUS_POINTS = 500;
@@ -61,7 +62,7 @@ interface Env {
   SESSION_SECRET: string;
 }
 
-type Phase = "waiting" | "question" | "reveal" | "checkpoint" | "finished";
+type Phase = "waiting" | "countdown" | "question" | "reveal" | "checkpoint" | "finished";
 
 interface QuestionRow {
   id: number;
@@ -575,7 +576,10 @@ export class QuizSession {
     let now = Date.now();
     while (session.deadline !== null && now >= session.deadline) {
       changed = true;
-      if (session.phase === "question") {
+      if (session.phase === "countdown") {
+        session.phase = "question";
+        session.deadline = now + QUESTION_DURATION_MS;
+      } else if (session.phase === "question") {
         session.phase = "reveal";
         session.deadline = now + REVEAL_DURATION_MS;
       } else if (session.phase === "reveal") {
@@ -600,9 +604,10 @@ export class QuizSession {
   private publicState(session: SessionData, player: Player | undefined): Record<string, unknown> {
     const ranking = this.leaderboard(session);
     const ownRank = player ? ranking.find((entry) => entry.name === player.name)?.rank ?? null : null;
-    const question = session.phase !== "waiting"
+    const question = session.phase !== "waiting" && session.phase !== "countdown"
       ? session.questions[session.questionIndex]
       : undefined;
+    const selectedIndex = player && question ? player.answers[String(question.id)] ?? null : null;
     const result: Record<string, unknown> = {
       sessionId: EVENT_SESSION_ID,
       phase: session.phase,
@@ -613,15 +618,16 @@ export class QuizSession {
         ? { id: question.id, prompt: question.prompt, options: question.options, category: question.category }
         : null,
       hasAnswered: Boolean(player && question && Object.hasOwn(player.answers, String(question.id))),
+      selectedIndex,
       ownScore: player?.score ?? null,
       ownRank,
       playersCount: Object.keys(session.players).length,
     };
-    if (session.phase !== "question" && session.phase !== "waiting" && question) {
+    if (session.phase !== "question" && question) {
       result.reveal = {
         answerIndex: question.answerIndex,
         explanation: question.explanation,
-        selectedIndex: player?.answers[String(question.id)] ?? null,
+        selectedIndex,
       };
     }
     if (session.phase === "checkpoint" || session.phase === "finished") {
@@ -632,7 +638,9 @@ export class QuizSession {
 
   private boardState(session: SessionData): Record<string, unknown> {
     const players = Object.values(session.players);
-    const question = session.phase !== "waiting" ? session.questions[session.questionIndex] : undefined;
+    const question = session.phase !== "waiting" && session.phase !== "countdown"
+      ? session.questions[session.questionIndex]
+      : undefined;
     const revealed = session.phase === "reveal" || session.phase === "checkpoint" || session.phase === "finished";
     const optionCounts = [0, 0, 0];
     let answeredCount = 0;
@@ -651,6 +659,7 @@ export class QuizSession {
       questionCount: session.questions.length || QUIZ_LENGTH,
       deadline: session.deadline,
       questionDurationMs: QUESTION_DURATION_MS,
+      countdownDurationMs: START_COUNTDOWN_MS,
       playersCount: players.length,
       answeredCount,
       question: question
@@ -682,7 +691,9 @@ export class QuizSession {
       await this.advanceOverdue(session);
 
       if (url.pathname === "/join" && request.method === "POST") {
-        if (session.phase !== "waiting") throw new HttpError(409, "La partie a déjà commencé.", "session_started");
+        if (session.phase !== "waiting" && session.phase !== "countdown") {
+          throw new HttpError(409, "La partie a déjà commencé.", "session_started");
+        }
         const body = await readJson(request);
         const { display, normalized } = this.normalizeName(typeof body.name === "string" ? body.name : "");
         if (Object.values(session.players).some((player) => player.normalizedName === normalized)) {
@@ -748,9 +759,9 @@ export class QuizSession {
           throw new HttpError(409, `La session requiert exactement ${QUIZ_LENGTH} questions disponibles.`, "question_count");
         }
         session.questions = result.results.map(questionFromRow);
-        session.phase = "question";
+        session.phase = "countdown";
         session.questionIndex = 0;
-        session.deadline = Date.now() + QUESTION_DURATION_MS;
+        session.deadline = Date.now() + START_COUNTDOWN_MS;
         session.cleanupAt = null;
         await this.save(session);
         await this.state.storage.setAlarm(session.deadline);

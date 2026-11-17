@@ -7,6 +7,7 @@
     <meta name="robots" content="noindex, nofollow">
     <title>WomenFlare · Écran</title>
     <link rel="stylesheet" href="/stage.css">
+    <script src="/stage.js" defer></script>
     <script src="/ecran/app.js" defer></script>
   </head>
   <body class="screen">
@@ -14,7 +15,7 @@
       <div class="stage-top">
         <p id="stage-category" class="stage-category">WomenFlare</p>
         <p id="stage-step" class="stage-step">Connexion…</p>
-        <div id="stage-timer" class="stage-timer" hidden>15</div>
+        <div id="stage-timer" class="stage-timer" hidden>30</div>
       </div>
       <div class="stage-progress"><span id="stage-progress-bar"></span></div>
 
@@ -24,16 +25,24 @@
         <p id="stage-idle-note">Les participantes et participants rejoignent la session.</p>
       </div>
 
+      <div id="stage-countdown" class="stage-countdown" hidden>
+        <p class="eyebrow">Le quiz commence dans</p>
+        <div id="stage-countdown-number" class="stage-countdown-number" role="timer">5</div>
+        <p class="stage-countdown-note">Préparez vos téléphones !</p>
+      </div>
+
       <div id="stage-question" class="stage-question" hidden>
         <h3 id="stage-prompt"></h3>
         <div id="stage-options" class="stage-options"></div>
-        <p id="stage-explanation" class="stage-explanation" hidden></p>
+        <div id="stage-explanation" class="stage-explanation" hidden><small>À retenir</small><p id="stage-explanation-text"></p></div>
       </div>
 
       <div id="stage-board" class="stage-board" hidden>
         <p id="stage-board-eyebrow" class="eyebrow">Palmarès</p>
         <h3 id="stage-board-title">Le podium se dessine.</h3>
         <ol id="stage-ranking" class="stage-ranking"></ol>
+        <div id="stage-podium" class="stage-podium" hidden></div>
+        <div id="stage-board-explanation" class="stage-explanation stage-board-explanation" hidden><small>À retenir</small><p id="stage-board-explanation-text"></p></div>
       </div>
 
       <p id="stage-footer" class="stage-footer">Connexion à la session…</p>

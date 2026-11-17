@@ -16,7 +16,7 @@ import {
 } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 
-type Phase = 'waiting' | 'question' | 'reveal' | 'checkpoint' | 'finished'
+type Phase = 'waiting' | 'countdown' | 'question' | 'reveal' | 'checkpoint' | 'finished'
 type Tab = 'quiz' | 'resources' | 'admin'
 
 interface QuizState {
@@ -27,6 +27,7 @@ interface QuizState {
   question: { id: number; prompt: string; options: string[]; category: string } | null
   reveal?: { answerIndex: number; explanation: string; selectedIndex: number | null }
   hasAnswered: boolean
+  selectedIndex?: number | null
   ownScore: number | null
   ownRank: number | null
   playersCount: number
@@ -95,6 +96,23 @@ function Countdown({ deadline }: { deadline: number | null }) {
   return <View style={styles.countdown}><Text style={styles.countdownNumber}>{remaining}</Text><Text style={styles.countdownUnit}>SEC.</Text></View>
 }
 
+function StartCountdown({ deadline }: { deadline: number | null }) {
+  const [remaining, setRemaining] = useState(5)
+  useEffect(() => {
+    const update = () => setRemaining(Math.max(0, Math.ceil(((deadline ?? Date.now()) - Date.now()) / 1000)))
+    update()
+    const timer = setInterval(update, 200)
+    return () => clearInterval(timer)
+  }, [deadline])
+  return (
+    <View style={styles.waiting}>
+      <Text style={styles.eyebrow}>LE QUIZ COMMENCE DANS</Text>
+      <Text accessibilityRole="timer" style={styles.startCountdown}>{remaining > 0 ? remaining : 'Go !'}</Text>
+      <Text style={styles.lead}>Préparez-vous !</Text>
+    </View>
+  )
+}
+
 function Header({ tab, onChange }: { tab: Tab; onChange: (tab: Tab) => void }) {
   return (
     <View style={styles.header}>
@@ -160,7 +178,7 @@ function Join({ onJoined }: { onJoined: (playerId: string, state: QuizState) => 
           <Text style={styles.primaryButtonLabel}>{joining ? 'Connexion…' : 'Rejoindre'}</Text>
         </Pressable>
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Text style={styles.quiet}>●  15 secondes · jusqu’à 1 000 points selon la rapidité · podium après chaque question</Text>
+        <Text style={styles.quiet}>●  30 secondes · jusqu’à 1 000 points selon la rapidité · podium après chaque question</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   )
@@ -194,6 +212,7 @@ function Leaderboard({ state }: { state: QuizState }) {
 
 function Question({ state, playerId, onResources }: { state: QuizState; playerId: string; onResources: () => void }) {
   const [answering, setAnswering] = useState(false)
+  const [pickedIndex, setPickedIndex] = useState<number | null>(null)
   const [answerError, setAnswerError] = useState('')
   const question = state.question
   if (!question) return null
@@ -201,16 +220,19 @@ function Question({ state, playerId, onResources }: { state: QuizState; playerId
   const answer = async (optionIndex: number) => {
     if (state.hasAnswered || answering) return
     setAnswering(true)
+    setPickedIndex(optionIndex)
     setAnswerError('')
     try {
       await api('/api/session/answer', { method: 'POST', body: JSON.stringify({ playerId, optionIndex }) })
     } catch (reason) {
       setAnswerError(reason instanceof Error ? reason.message : 'Réponse non enregistrée.')
       setAnswering(false)
+      setPickedIndex(null)
     }
   }
 
   const isReveal = state.phase === 'reveal'
+  const selectedIndex = state.selectedIndex ?? pickedIndex
   return (
     <ScrollView contentContainerStyle={styles.screen}>
       <View style={styles.questionMeta}><Text style={styles.category}>{question.category}</Text>{!isReveal ? <Countdown deadline={state.deadline} /> : null}</View>
@@ -221,14 +243,15 @@ function Question({ state, playerId, onResources }: { state: QuizState; playerId
         {question.options.map((option, index) => {
           const correct = isReveal && index === state.reveal?.answerIndex
           const wrong = isReveal && index === state.reveal?.selectedIndex && !correct
+          const selected = !isReveal && index === selectedIndex
           return (
             <Pressable
               disabled={isReveal || state.hasAnswered || answering}
               key={`${question.id}-${index}`}
               onPress={() => answer(index)}
-              style={({ pressed }) => [styles.answer, correct && styles.correctAnswer, wrong && styles.wrongAnswer, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.answer, selected && styles.selectedAnswer, correct && styles.correctAnswer, wrong && styles.wrongAnswer, pressed && styles.pressed]}
             >
-              <Text style={styles.answerLetter}>{optionLabels[index]}</Text><Text style={styles.answerText}>{option}</Text>
+              <Text style={[styles.answerLetter, selected && styles.selectedAnswerLetter]}>{optionLabels[index]}</Text><Text style={styles.answerText}>{option}</Text>
             </Pressable>
           )
         })}
@@ -274,6 +297,7 @@ function Quiz({ onResources }: { onResources: () => void }) {
   if (!playerId) return <Join onJoined={(id, next) => { setPlayerId(id); setState(next) }} />
   if (!state) return <View style={styles.loading}><Mark /><Text style={styles.muted}>Connexion à la session…</Text>{error ? <Text style={styles.error}>{error}</Text> : null}</View>
   if (state.phase === 'waiting') return <View style={styles.waiting}><Mark /><Text style={styles.eyebrow}>VOUS ÊTES DANS LA SESSION</Text><Text style={styles.title}>Bienvenue.</Text><Text style={styles.lead}>L’animation commencera bientôt. {state.playersCount} participant{state.playersCount > 1 ? 's' : ''} connecté{state.playersCount > 1 ? 's' : ''}.</Text>{error ? <Text style={styles.error}>{error}</Text> : null}</View>
+  if (state.phase === 'countdown') return <StartCountdown deadline={state.deadline} />
   if (state.phase === 'checkpoint' || state.phase === 'finished') return <Leaderboard state={state} />
   return <Question key={state.question?.id} onResources={onResources} playerId={playerId} state={state} />
 }
@@ -500,7 +524,7 @@ const styles = StyleSheet.create({
   label: { alignSelf: 'stretch', color: colors.ink, fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }, input: { width: '100%', height: 54, paddingHorizontal: 16, borderWidth: 1, borderColor: colors.line, borderRadius: 12, backgroundColor: colors.paper, color: colors.ink, fontSize: 16, marginBottom: 10 }, primaryButton: { width: '100%', minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.ink }, primaryButtonLabel: { color: '#fff', fontWeight: '800' }, disabled: { opacity: 0.5 }, pressed: { opacity: 0.75 }, quiet: { color: colors.muted, fontSize: 11, marginTop: 15 }, error: { color: '#a32c3e', fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 12 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18, padding: 30 }, waiting: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30, gap: 14 },
   questionMeta: { minHeight: 68, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }, category: { flexShrink: 1, color: colors.violet, fontSize: 11, fontWeight: '800', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 18, backgroundColor: colors.lilac, marginRight: 15, overflow: 'hidden' }, countdown: { width: 60, height: 60, borderWidth: 2, borderColor: colors.orange, borderRadius: 30, alignItems: 'center', justifyContent: 'center' }, countdownNumber: { color: colors.ink, fontSize: 21, lineHeight: 22, fontWeight: '800' }, countdownUnit: { color: colors.muted, fontSize: 8 },
-  progress: { height: 3, backgroundColor: colors.line, marginBottom: 26 }, progressValue: { height: 3, backgroundColor: colors.orange }, answers: { gap: 11 }, answer: { minHeight: 84, padding: 14, borderWidth: 1, borderColor: colors.line, borderRadius: 14, backgroundColor: colors.paper, flexDirection: 'row', alignItems: 'center', gap: 14 }, answerLetter: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.lilac, color: colors.violet, textAlign: 'center', lineHeight: 34, fontWeight: '800', overflow: 'hidden' }, answerText: { flex: 1, color: colors.ink, fontSize: 14, lineHeight: 20 }, correctAnswer: { borderWidth: 2, borderColor: '#4f8b69', backgroundColor: '#edf7f0' }, wrongAnswer: { borderColor: '#b34c5d', backgroundColor: '#faeef0' }, saved: { color: colors.violet, textAlign: 'center', fontSize: 12, marginTop: 18 }, explanation: { borderLeftWidth: 3, borderLeftColor: colors.orange, padding: 16, backgroundColor: '#fff8ef', marginTop: 22 }, explanationLabel: { color: colors.orange, fontSize: 10, fontWeight: '900', letterSpacing: 1 }, explanationText: { color: colors.ink, fontSize: 14, lineHeight: 21, marginTop: 8 }, textLink: { color: colors.muted, fontSize: 12, textAlign: 'center', textDecorationLine: 'underline', marginTop: 26 },
+  progress: { height: 3, backgroundColor: colors.line, marginBottom: 26 }, progressValue: { height: 3, backgroundColor: colors.orange }, answers: { gap: 11 }, answer: { minHeight: 84, padding: 14, borderWidth: 1, borderColor: colors.line, borderRadius: 14, backgroundColor: colors.paper, flexDirection: 'row', alignItems: 'center', gap: 14 }, answerLetter: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.lilac, color: colors.violet, textAlign: 'center', lineHeight: 34, fontWeight: '800', overflow: 'hidden' }, answerText: { flex: 1, color: colors.ink, fontSize: 14, lineHeight: 20 }, selectedAnswer: { borderWidth: 2, borderColor: colors.orange, backgroundColor: '#fff1e3' }, selectedAnswerLetter: { color: '#fff', backgroundColor: colors.orange }, startCountdown: { color: colors.orange, fontSize: 140, lineHeight: 150, fontWeight: '900' }, correctAnswer: { borderWidth: 2, borderColor: '#4f8b69', backgroundColor: '#edf7f0' }, wrongAnswer: { borderColor: '#b34c5d', backgroundColor: '#faeef0' }, saved: { color: colors.violet, textAlign: 'center', fontSize: 12, marginTop: 18 }, explanation: { borderLeftWidth: 3, borderLeftColor: colors.orange, padding: 16, backgroundColor: '#fff8ef', marginTop: 22 }, explanationLabel: { color: colors.orange, fontSize: 10, fontWeight: '900', letterSpacing: 1 }, explanationText: { color: colors.ink, fontSize: 14, lineHeight: 21, marginTop: 8 }, textLink: { color: colors.muted, fontSize: 12, textAlign: 'center', textDecorationLine: 'underline', marginTop: 26 },
   ranking: { gap: 9, marginTop: 15 }, rank: { minHeight: 62, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: colors.line, borderRadius: 12, backgroundColor: colors.paper }, firstRank: { minHeight: 76, borderWidth: 2, borderColor: colors.orange }, secondRank: { borderColor: '#9d68ab' }, thirdRank: { borderColor: '#dc9f76' }, rankNumber: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#eee8e4', color: colors.ink, textAlign: 'center', lineHeight: 34, fontWeight: '800', overflow: 'hidden' }, firstRankNumber: { color: '#fff', backgroundColor: colors.orange }, secondRankNumber: { color: '#fff', backgroundColor: '#9d68ab' }, thirdRankNumber: { color: colors.ink, backgroundColor: '#dc9f76' }, rankName: { flex: 1, color: colors.ink, fontWeight: '700' }, rankScore: { color: colors.violet, fontSize: 12, fontWeight: '800' }, ownRank: { color: colors.ink, textAlign: 'center', marginTop: 28 }, podiumExplanation: { marginTop: 34, padding: 18, borderLeftWidth: 3, borderLeftColor: colors.orange, borderRadius: 10, backgroundColor: '#fff8ef' },
   urgent: { borderRadius: 16, overflow: 'hidden', backgroundColor: colors.ink, marginVertical: 36 }, urgentItem: { padding: 22, borderBottomWidth: 1, borderBottomColor: '#ffffff22' }, urgentItemLast: { borderBottomWidth: 0 }, urgentLabel: { color: '#d4c9db', fontSize: 9, letterSpacing: 1, marginBottom: 5 }, urgentNumber: { color: '#ff9b50', fontFamily: Platform.select({ ios: 'Georgia', default: 'serif' }), fontSize: 28 }, sectionTitle: { color: colors.ink, fontSize: 21, fontWeight: '800', marginBottom: 10 }, resource: { flexDirection: 'row', gap: 12, paddingVertical: 20, borderTopWidth: 1, borderTopColor: colors.line }, resourceIndex: { width: 28, color: colors.orange, fontFamily: Platform.select({ ios: 'Georgia', default: 'serif' }), fontSize: 18 }, resourceBody: { flex: 1 }, resourceType: { color: colors.violet, textTransform: 'uppercase', fontSize: 8, letterSpacing: 1.2 }, resourceName: { color: colors.ink, fontSize: 19, fontWeight: '800', marginVertical: 5 }, resourceDescription: { color: colors.muted, fontSize: 13, lineHeight: 19 }, resourcePhone: { color: colors.ink, fontSize: 17, fontWeight: '800', marginTop: 9 }, resourceArrow: { color: colors.orange, fontSize: 20 }, disclaimer: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 28 },
   adminLogin: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 50 }, adminGear: { width: 68, height: 68, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: colors.ink, marginBottom: 28 }, adminGearText: { color: colors.orange, fontSize: 39 }, adminIntro: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: -6, marginBottom: 28 }, adminHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24 }, adminTitle: { color: colors.ink, fontSize: 34, lineHeight: 38, letterSpacing: -1, fontWeight: '800' }, logout: { color: colors.violet, fontSize: 11, textDecorationLine: 'underline', paddingTop: 4 }, adminStats: { flexDirection: 'row', borderWidth: 1, borderColor: colors.line, borderRadius: 14, backgroundColor: colors.paper, marginBottom: 12, overflow: 'hidden' }, adminStat: { flex: 1, minHeight: 72, justifyContent: 'center', padding: 10, borderRightWidth: 1, borderRightColor: colors.line }, adminStatLabel: { color: colors.muted, fontSize: 7, letterSpacing: 0.7, marginBottom: 7 }, adminStatValue: { color: colors.ink, fontSize: 15, fontWeight: '800' }, resetButton: { width: '100%', minHeight: 50, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#e8e1dd', marginTop: 9 }, resetButtonLabel: { color: '#9d3043', fontWeight: '800' }, adminMessage: { color: colors.violet, fontSize: 12, textAlign: 'center', marginTop: 14 }, adminSectionTitle: { color: colors.ink, fontSize: 22, fontWeight: '800', marginTop: 40, marginBottom: 12 }, adminQuestion: { flexDirection: 'row', gap: 12, paddingVertical: 16, borderTopWidth: 1, borderTopColor: colors.line }, adminQuestionNumber: { width: 28, color: colors.orange, fontSize: 18, fontWeight: '800' }, adminQuestionPrompt: { color: colors.ink, fontSize: 14, lineHeight: 20, fontWeight: '700', marginTop: 4 }, adminAnswer: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 7 },

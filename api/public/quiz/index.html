@@ -31,7 +31,7 @@
           <input id="name" name="name" type="text" autocomplete="nickname" autocapitalize="words" enterkeyhint="go" maxlength="40" placeholder="Ex. Camille" required>
           <button id="join-button" class="primary" type="submit">Rejoindre</button>
           <p id="join-error" class="error" role="alert"></p>
-          <p class="quiet">● 15 secondes · jusqu’à 1 000 points selon la rapidité · podium après chaque question</p>
+          <p class="quiet">● 30 secondes · jusqu’à 1 000 points selon la rapidité · podium après chaque question</p>
         </form>
 
         <div id="connecting-view" class="centered" hidden>
@@ -44,6 +44,12 @@
           <p class="eyebrow">Vous êtes dans la session</p>
           <h1>Bienvenue.</h1>
           <p id="waiting-note" class="lead" role="status"></p>
+        </div>
+
+        <div id="countdown-view" class="centered" hidden>
+          <p class="eyebrow">Le quiz commence dans</p>
+          <b id="start-countdown" class="start-countdown" role="timer">5</b>
+          <p class="lead">Préparez-vous !</p>
         </div>
 
         <div id="question-view" hidden>

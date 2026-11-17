@@ -1,6 +1,6 @@
 const playerKey = 'womenflare-player-id'
 const labels = ['A', 'B', 'C']
-const views = ['join-view', 'connecting-view', 'waiting-view', 'question-view', 'board-view']
+const views = ['join-view', 'connecting-view', 'waiting-view', 'countdown-view', 'question-view', 'board-view']
 
 let playerId = readPlayerId()
 let state = null
@@ -9,6 +9,8 @@ let joining = false
 let joinError = ''
 // Id of the question for which an answer was sent; keeps the options locked until the next question.
 let answeredQuestionId = null
+// Option picked locally, highlighted in orange until the server confirms it or the answer is revealed.
+let answeredIndex = null
 let answerError = ''
 let polling = false
 let rendered = ''
@@ -65,6 +67,7 @@ function plural(count, one, many) {
 function setState(next) {
   if (next.question?.id !== state?.question?.id) {
     answeredQuestionId = null
+    answeredIndex = null
     answerError = ''
   }
   state = next
@@ -75,6 +78,7 @@ function leaveSession() {
   state = null
   connectionError = ''
   answeredQuestionId = null
+  answeredIndex = null
   answerError = ''
   storePlayerId(null)
 }
@@ -83,11 +87,24 @@ function currentView() {
   if (!playerId) return 'join-view'
   if (!state) return 'connecting-view'
   if (state.phase === 'waiting') return 'waiting-view'
+  if (state.phase === 'countdown') return 'countdown-view'
   if (state.phase === 'checkpoint' || state.phase === 'finished') return 'board-view'
   return 'question-view'
 }
 
 function renderCountdown() {
+  if (state?.phase === 'countdown') {
+    const node = byId('start-countdown')
+    const remaining = Math.max(0, Math.ceil(((state.deadline ?? Date.now()) - Date.now()) / 1000))
+    const text = remaining > 0 ? String(remaining) : 'Go !'
+    if (node.textContent !== text) {
+      node.textContent = text
+      node.classList.remove('pop')
+      void node.offsetWidth
+      node.classList.add('pop')
+    }
+    return
+  }
   if (!state || state.phase !== 'question') return
   const remaining = Math.max(0, Math.ceil(((state.deadline ?? Date.now()) - Date.now()) / 1000))
   byId('countdown-number').textContent = String(remaining)
@@ -106,22 +123,25 @@ function renderQuestion() {
   byId('progress').hidden = isReveal
   byId('progress-bar').style.width = `${((state.questionIndex + 1) / state.questionCount) * 100}%`
 
+  const selectedIndex = state.selectedIndex ?? (answeredQuestionId === question?.id ? answeredIndex : null)
   const list = byId('answers')
   list.replaceChildren()
   for (const [index, option] of (question?.options || []).entries()) {
     const correct = isReveal && index === state.reveal?.answerIndex
     const wrong = isReveal && index === state.reveal?.selectedIndex && !correct
+    const selected = !isReveal && index === selectedIndex
     const button = document.createElement('button')
     button.type = 'button'
     button.disabled = locked
     if (correct) button.className = 'correct'
     if (wrong) button.className = 'wrong'
+    if (selected) button.className = 'selected'
     const letter = document.createElement('b')
     letter.textContent = labels[index]
     const text = document.createElement('span')
     text.textContent = option
     button.append(letter, text)
-    if (correct || wrong) button.setAttribute('aria-label', `${labels[index]}. ${option} (${correct ? 'bonne réponse' : 'votre réponse'})`)
+    if (correct || wrong || selected) button.setAttribute('aria-label', `${labels[index]}. ${option} (${correct ? 'bonne réponse' : 'votre réponse'})`)
     button.addEventListener('click', () => void answer(index))
     list.append(button)
   }
@@ -172,7 +192,7 @@ function renderBoard() {
 // Polling runs twice per second: only touch the DOM when something visible changed,
 // so buttons are not rebuilt under the participant's finger.
 function render() {
-  const signature = JSON.stringify([playerId, state, connectionError, joining, joinError, answeredQuestionId, answerError])
+  const signature = JSON.stringify([playerId, state, connectionError, joining, joinError, answeredQuestionId, answeredIndex, answerError])
   if (signature === rendered) return
   rendered = signature
 
@@ -241,6 +261,7 @@ async function answer(optionIndex) {
   const questionId = state?.question?.id
   if (!playerId || questionId === undefined || state.phase !== 'question' || state.hasAnswered || answeredQuestionId === questionId) return
   answeredQuestionId = questionId
+  answeredIndex = optionIndex
   answerError = ''
   render()
   try {
@@ -251,7 +272,10 @@ async function answer(optionIndex) {
     if (error.code === 'player_not_found') leaveSession()
     else {
       // Unlock the options so the participant can retry, unless the answer is already recorded.
-      if (error.code !== 'already_answered') answeredQuestionId = null
+      if (error.code !== 'already_answered') {
+        answeredQuestionId = null
+        answeredIndex = null
+      }
       answerError = error.message
     }
     render()

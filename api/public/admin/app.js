@@ -1,6 +1,6 @@
 const tokenKey = 'womenflare-admin-token'
 const labels = ['A', 'B', 'C']
-const phaseLabels = { waiting: 'En attente', question: 'Question', reveal: 'Réponse', checkpoint: 'Palmarès', finished: 'Terminé' }
+const phaseLabels = { waiting: 'En attente', countdown: 'Compte à rebours', question: 'Question', reveal: 'Réponse', checkpoint: 'Palmarès', finished: 'Terminé' }
 const panels = { questions: 'questions-panel', resources: 'resources-panel', present: 'present-panel' }
 let token = sessionStorage.getItem(tokenKey) || ''
 let questions = []
@@ -167,6 +167,7 @@ function beginPolling() {
 
 function renderTimer() {
   const node = byId('stage-timer')
+  if (board?.phase === 'countdown') WomenFlareStage.tickCountdown(byId('stage-countdown-number'), board.deadline)
   if (!board || board.phase !== 'question' || !board.deadline) {
     node.textContent = '—'
     return
@@ -208,9 +209,7 @@ function renderStageQuestion() {
     }
     list.append(row)
   }
-  const explanation = byId('stage-explanation')
-  explanation.textContent = board.explanation || ''
-  explanation.hidden = !board.explanation
+  WomenFlareStage.setExplanation(byId('stage-explanation'), byId('stage-explanation-text'), board.explanation)
 }
 
 function renderStageBoard() {
@@ -221,6 +220,15 @@ function renderStageBoard() {
     : answered > 1 ? `Palmarès après ${answered} questions` : 'Palmarès après 1 question'
   byId('stage-board-title').textContent = finished ? 'Merci d’avoir participé.' : 'Le podium se dessine.'
   const list = byId('stage-ranking')
+  const podium = byId('stage-podium')
+  list.hidden = finished
+  podium.hidden = !finished
+  WomenFlareStage.setExplanation(byId('stage-board-explanation'), byId('stage-board-explanation-text'), finished ? '' : board.explanation)
+  if (finished) {
+    WomenFlareStage.renderPodium(podium, board.leaderboard)
+    return
+  }
+  WomenFlareStage.resetPodium(podium)
   list.replaceChildren()
   for (const entry of board.leaderboard || []) {
     const item = document.createElement('li')
@@ -248,16 +256,19 @@ function renderStage() {
   const showBoard = board.phase === 'checkpoint' || board.phase === 'finished'
   const people = board.playersCount
   byId('stage-category').textContent = board.question?.category || 'WomenFlare'
-  byId('stage-step').textContent = board.questionIndex >= 0
+  byId('stage-step').textContent = board.phase === 'countdown'
+    ? 'Préparez-vous'
+    : board.questionIndex >= 0
     ? `Question ${board.questionIndex + 1} sur ${board.questionCount}`
     : 'Session non démarrée'
-  byId('stage-progress-bar').style.width = board.questionIndex >= 0
+  byId('stage-progress-bar').style.width = board.questionIndex >= 0 && board.phase !== 'countdown'
     ? `${Math.round(((board.questionIndex + 1) / board.questionCount) * 100)}%`
     : '0%'
   byId('stage-footer').textContent = board.phase === 'question'
     ? `${board.answeredCount} / ${people} réponses reçues`
     : people > 1 ? `${people} participants connectés` : `${people} participant connecté`
   byId('stage-idle').hidden = board.phase !== 'waiting'
+  byId('stage-countdown').hidden = board.phase !== 'countdown'
   byId('stage-question').hidden = !showQuestion
   byId('stage-board').hidden = !showBoard
   byId('stage-timer').hidden = board.phase !== 'question'
@@ -303,7 +314,7 @@ async function sessionAction(action) {
   try {
     session = await request(`/api/admin/session/${action}`, { method: 'POST' })
     renderSession()
-    setNotice(action === 'start' ? 'Quiz lancé.' : action === 'next' ? 'Étape suivante lancée.' : 'Session réinitialisée.')
+    setNotice(action === 'start' ? 'Quiz lancé : compte à rebours de 5 secondes.' : action === 'next' ? 'Étape suivante lancée.' : 'Session réinitialisée.')
     if (presenting) await refreshSession()
   } catch (error) {
     setNotice(error.message, true)

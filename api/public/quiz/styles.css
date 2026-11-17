@@ -68,8 +68,13 @@ input:focus { border-color: #633f84; box-shadow: 0 0 0 3px #633f8420; }
 .answers button:enabled:active { opacity: .75; }
 .answers button b { display: grid; flex: none; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: #633f84; background: #e7dcf1; }
 .answers button span { flex: 1; overflow-wrap: anywhere; }
+.answers button.selected { padding: 13px; border: 2px solid #f6821f; background: #fff1e3; }
+.answers button.selected b { color: #fff; background: #f6821f; }
 .answers button.correct { padding: 13px; border: 2px solid #4f8b69; background: #edf7f0; }
 .answers button.wrong { border-color: #b34c5d; background: #faeef0; }
+.start-countdown { color: #f6821f; font-size: 140px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+.start-countdown.pop { animation: count-pop .9s cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes count-pop { from { opacity: 0; transform: scale(1.8); } to { opacity: 1; transform: scale(1); } }
 .saved { margin: 18px 0 0; color: #633f84; font-size: 12px; text-align: center; }
 .explanation { margin-top: 22px; padding: 16px; border-left: 3px solid #f6821f; background: #fff8ef; }
 .explanation.rounded { margin-top: 34px; padding: 18px; border-radius: 10px; }

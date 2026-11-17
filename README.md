@@ -26,20 +26,22 @@ npm run db:migrate:local
 npm run dev:api
 ```
 
+The local API is available at `http://localhost:8787/api`. Authorized administrators are `hedimo@cloudflare.com`, `pseral@cloudflare.com`, and `mderoquemaurel@cloudflare.com`; the development password is `Cloudflare2026!`. Before deployment, verify the D1 binding and `ADMIN_EMAILS` allowlist in `api/wrangler.jsonc`, then configure `ADMIN_PASSWORD` and `SESSION_SECRET` as Worker secrets.
 
 ### Session lifecycle
 
-A single Durable Object named `main-event` holds the whole live session. It moves through five phases:
+A single Durable Object named `main-event` holds the whole live session. It moves through six phases:
 
 ```text
-waiting --start--> question (15 s) --auto--> reveal (5 s) --auto--> checkpoint --next--> question ...
-                                                                        |
-                                                            after 20 questions: finished
+waiting --start--> countdown (5 s) --auto--> question (30 s) --auto--> reveal (5 s) --auto--> checkpoint --next--> question ...
+                                                                                                   |
+                                                                                       after 20 questions: finished
 ```
 
-- Participants can join only during `waiting`, and display names must be unique.
+- Participants can join during `waiting` and the start `countdown`, and display names must be unique.
+- On the projection screen, the `finished` phase opens curtains on a podium and reveals the 3rd, 2nd and 1st places five seconds apart.
 - A correct answer is worth 500 points plus up to 500 more for speed, so 1 000 maximum.
-- `question -> reveal -> checkpoint` is automatic, driven by Durable Object alarms. Only `checkpoint -> question` needs an administrator, which is what the **Question suivante** button does.
+- `countdown -> question -> reveal -> checkpoint` is automatic, driven by Durable Object alarms. Only `checkpoint -> question` needs an administrator, which is what the **Question suivante** button does.
 - All participant data lives in Durable Object storage, never in D1. It is erased immediately when an administrator presses **Réinitialiser**, and otherwise by an automatic alarm 24 hours after the last question. Resetting after the event is the fastest way to leave nothing behind.
 
 ### Administration console
